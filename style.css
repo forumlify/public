@@ -2566,3 +2566,266 @@ a.btn-secondary {
     display: none !important;
   }
 }
+
+/* ============================================================
+   📐 主页双栏布局（参考 NHT 风格）
+   ============================================================ */
+
+/* 主页容器：主内容 + 右侧面板 */
+#app {
+  display: flex;
+  gap: 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 32px 40px;
+  align-items: flex-start;
+}
+
+/* 主内容区（帖子流） */
+#feed {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 右侧面板（统计 + 友链） */
+#sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 统计卡片 & 友链卡片 */
+.stats-box,
+.links-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--glass-shadow);
+  transition: all var(--transition);
+}
+
+.stats-box:hover,
+.links-box:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.stats-box h4,
+.links-box h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--glass-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+
+.stats-box h4 svg,
+.links-box h4 svg {
+  margin-right: 6px;
+  color: var(--primary);
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-item span:first-child {
+  color: var(--glass-text-secondary);
+}
+
+.stat-item span:last-child {
+  font-weight: 600;
+  color: var(--glass-text);
+}
+
+.links-box ul {
+  list-style: none;
+}
+
+.links-box li {
+  padding: 4px 0;
+}
+
+.links-box li a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color var(--transition);
+}
+
+.links-box li a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* 帖子卡片（NHT 风格微调） */
+.post-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 12px;
+  transition: all var(--transition);
+  cursor: pointer;
+  box-shadow: var(--glass-shadow);
+}
+
+.post-card:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.10);
+}
+
+/* ============================================================
+   ⚙️ 设置页面侧边栏（参考 NHT 风格）
+   ============================================================ */
+
+.settings-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 8px 0;
+  box-shadow: var(--glass-shadow);
+  position: sticky;
+  top: 84px;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  color: var(--glass-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.settings-nav-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--glass-text);
+}
+
+.settings-nav-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--primary);
+  border-left-color: var(--primary);
+}
+
+.settings-nav-item .nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.settings-nav-item .nav-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--glass-shadow);
+}
+
+/* ============================================================
+   📱 手机端适配
+   ============================================================ */
+
+@media (max-width: 768px) {
+  #app {
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  #sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .stats-box,
+  .links-box {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+    border: none;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .settings-nav-item {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+  }
+
+  .settings-nav-item.active {
+    border-bottom-color: var(--primary);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .settings-content {
+    padding: 16px;
+  }
+
+  .settings-layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  #sidebar {
+    flex-direction: column;
+  }
+
+  .stats-box,
+  .links-box {
+    min-width: unset;
+  }
+}
