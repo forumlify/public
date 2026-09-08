@@ -4,20 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title id="pageTitle">Forumlify</title>
-  
+
   <script>
   (function() {
     const theme = localStorage.getItem('forumlify-theme');
     if (theme === 'dark') {
-      // 直接改背景色，不让白屏出现
       document.documentElement.style.background = '#0f1117';
       document.documentElement.style.color = '#e8edf5';
-      // 预置暗色属性，防止闪烁
       document.documentElement.setAttribute('data-theme', 'dark');
     }
   })();
-</script>
-  
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -74,6 +72,22 @@
 
   <!-- ===== 主内容区 ===== -->
   <div id="app">
+    <main id="feed">
+      <div class="feed-header">
+        <div class="feed-header-left">
+          <button class="tab active" data-sort="latest">最新发布</button>
+          <button class="tab" data-sort="hot">最新回复</button>
+        </div>
+        <button id="fab" class="btn-primary fab-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          发布新帖
+        </button>
+      </div>
+      <div id="postList">
+        <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
+      </div>
+    </main>
+
     <aside id="sidebar">
       <div class="stats-box">
         <h4>
@@ -94,22 +108,6 @@
         </ul>
       </div>
     </aside>
-
-    <main id="feed">
-      <div class="feed-header">
-        <div class="feed-header-left">
-          <button class="tab active" data-sort="latest">最新发布</button>
-          <button class="tab" data-sort="hot">最新回复</button>
-        </div>
-        <button id="fab" class="btn-primary fab-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          发布新帖
-        </button>
-      </div>
-      <div id="postList">
-        <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
-      </div>
-    </main>
   </div>
 
   <!-- ===== 独立页面 ===== -->
