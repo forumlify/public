@@ -1,5 +1,5 @@
 // ============================================================
-//  📋 帖子列表
+//  📋 帖子列表（Discourse 风格）
 // ============================================================
 
 let currentSort = 'latest';
@@ -9,6 +9,7 @@ const PAGE_SIZE = 20;
 function renderFeed() {
   const container = document.getElementById('postList');
   container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
+
   API.getPosts(currentSort, currentPageNum, PAGE_SIZE).then(result => {
     const posts = result.data || [];
     const pagination = result.pagination || { total: 0, totalPages: 1, page: 1 };
@@ -16,8 +17,7 @@ function renderFeed() {
     currentPageNum = pagination.page || 1;
 
     if (posts.length === 0 && currentPageNum === 1) {
-      container.innerHTML =
-        '<div style="text-align:center;color:#94a3b8;padding:60px 0;">✨ 还没有帖子，快来发布第一条吧！</div>';
+      container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">还没有帖子，快来发布第一条吧！</div>';
       return;
     }
 
@@ -30,71 +30,53 @@ function renderFeed() {
     let html = '';
     posts.forEach(p => {
       const username = p.username || '匿名用户';
-      const avatar = p.avatar_url ||
-        'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) +
-        '&background=6366f1&color=fff&size=64';
       const time = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
-      let imagesHtml = '';
-      if (p.images && p.images.length > 0) {
-        imagesHtml = '<div class="post-images">';
-        p.images.forEach(img => {
-          imagesHtml += '<img src="' + escapeHTML(safeURL(img, { image: true })) + '" class="post-image" style="cursor:pointer;" />';
-        });
-        imagesHtml += '</div>';
-      }
       const replyCount = p.reply_count || 0;
+      const isHot = replyCount >= 10;
 
-      const renderedContent = renderMarkdown(p.content || '');
-
-      // 签名渲染
-      let signatureHtml = '';
-      if (p.signature) {
-        const sigContent = renderMarkdown(p.signature);
-        signatureHtml = `
-          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
-            ${sigContent}
-          </div>
-        `;
+      // 状态标记
+      let statusHtml = '';
+      if (p.is_pinned) {
+        statusHtml = `<span class="topic-status pinned">📌</span>`;
       }
+
+      // 前缀标签（如果有）
+      let prefixHtml = '';
+      if (p.prefix_tag) {
+        prefixHtml = `<span class="topic-prefix-tag">${escapeHTML(p.prefix_tag)}</span>`;
+      }
+
+      // 是否有未读回复（需要未读计数 API 支持，暂时留空）
+      const unreadClass = '';
 
       html += `
-        <div class="post-card" data-postid="${p.id}" style="cursor:pointer;">
-          ${p.is_pinned ? '<div style="font-size:12px;color:var(--primary);font-weight:600;margin-bottom:4px;">📌 置顶</div>' : ''}
-          <div class="post-header">
-            <img src="${escapeHTML(safeURL(avatar, { image: true }))}" class="post-avatar" />
-            <span class="post-username" data-username="${escapeHTML(username)}" style="cursor:pointer;color:var(--primary);">${escapeHTML(username)}</span>
-            <span class="post-time">${time}</span>
-            ${p.edited_at ? '<span style="font-size:11px;color:var(--text-light);margin-left:6px;">（已编辑）</span>' : ''}
+        <div class="topic-row${unreadClass}" data-postid="${p.id}">
+          <div class="topic-info">
+            <div class="topic-title">
+              ${prefixHtml}
+              <a href="#" onclick="switchToPost('${p.id}'); return false;">${escapeHTML(p.title || '无标题')}</a>
+              ${statusHtml}
+            </div>
+            <div class="topic-meta">
+              <span class="topic-author" data-username="${escapeHTML(username)}">${escapeHTML(username)}</span>
+              <span class="topic-time">${time}</span>
+            </div>
           </div>
-          <div class="post-title">${escapeHTML(p.title || '无标题')}</div>
-          <div class="post-content">${renderedContent}</div>
-          ${imagesHtml}
-          <div class="post-actions">
-            <span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              ${replyCount}
-            </span>
-            <button class="action-report" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-              举报
-            </button>
-            ${currentUser && currentUser.id === p.user_id ? `<button class="action-delete" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              删除
-            </button>` : ''}
+          <div class="topic-replies${isHot ? ' high' : ''}">
+            ${replyCount}
           </div>
-          ${signatureHtml}
         </div>
       `;
     });
+
     container.innerHTML = sanitizeHTML(html);
 
-    // 分页控件
+    // 分页
     if (totalPages > 1) {
       let paginationHtml = `
-        <div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0;margin-top:8px;border-top:1px solid var(--border);flex-wrap:wrap;">
+        <div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0;border-top:1px solid var(--glass-border);flex-wrap:wrap;">
           <button class="page-btn" data-page="${currentPageNum - 1}" ${currentPageNum <= 1 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}
-                  style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;">
+                  style="padding:6px 12px;border:1px solid var(--glass-border);border-radius:4px;background:var(--glass-bg);color:var(--glass-text);cursor:pointer;font-size:13px;">
             &laquo;
           </button>
       `;
@@ -110,9 +92,9 @@ function renderFeed() {
       }
 
       if (startPage > 1) {
-        paginationHtml += `<button class="page-btn" data-page="1" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;">1</button>`;
+        paginationHtml += `<button class="page-btn" data-page="1" style="padding:6px 10px;border:1px solid var(--glass-border);border-radius:4px;background:var(--glass-bg);color:var(--glass-text);cursor:pointer;font-size:13px;">1</button>`;
         if (startPage > 2) {
-          paginationHtml += `<span style="color:var(--text-light);padding:0 4px;">…</span>`;
+          paginationHtml += `<span style="color:var(--glass-text-light);padding:0 4px;">…</span>`;
         }
       }
 
@@ -120,7 +102,7 @@ function renderFeed() {
         const isActive = i === currentPageNum;
         paginationHtml += `
           <button class="page-btn" data-page="${i}" ${isActive ? 'disabled style="background:var(--primary);color:#fff;cursor:default;border-color:var(--primary);"' : ''}
-                  style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:${isActive ? 'var(--primary)' : 'var(--surface)'};color:${isActive ? '#fff' : 'var(--text)'};cursor:${isActive ? 'default' : 'pointer'};font-size:13px;min-width:32px;text-align:center;">
+                  style="padding:6px 10px;border:1px solid var(--glass-border);border-radius:4px;background:${isActive ? 'var(--primary)' : 'var(--glass-bg)'};color:${isActive ? '#fff' : 'var(--glass-text)'};cursor:${isActive ? 'default' : 'pointer'};font-size:13px;min-width:32px;text-align:center;">
             ${i}
           </button>
         `;
@@ -128,18 +110,18 @@ function renderFeed() {
 
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
-          paginationHtml += `<span style="color:var(--text-light);padding:0 4px;">…</span>`;
+          paginationHtml += `<span style="color:var(--glass-text-light);padding:0 4px;">…</span>`;
         }
-        paginationHtml += `<button class="page-btn" data-page="${totalPages}" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;">${totalPages}</button>`;
+        paginationHtml += `<button class="page-btn" data-page="${totalPages}" style="padding:6px 10px;border:1px solid var(--glass-border);border-radius:4px;background:var(--glass-bg);color:var(--glass-text);cursor:pointer;font-size:13px;">${totalPages}</button>`;
       }
 
       paginationHtml += `
           <button class="page-btn" data-page="${currentPageNum + 1}" ${currentPageNum >= totalPages ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}
-                  style="padding:6px 12px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;">
+                  style="padding:6px 12px;border:1px solid var(--glass-border);border-radius:4px;background:var(--glass-bg);color:var(--glass-text);cursor:pointer;font-size:13px;">
             &raquo;
           </button>
-          <span style="font-size:13px;color:var(--text-light);margin-left:8px;">
-            ${pagination.total} 帖
+          <span style="font-size:13px;color:var(--glass-text-light);margin-left:8px;">
+            ${pagination.total} 个主题
           </span>
         </div>
       `;
@@ -150,83 +132,81 @@ function renderFeed() {
           const page = parseInt(this.dataset.page);
           if (page >= 1 && page <= totalPages) {
             currentPageNum = page;
-            const url = new URL(window.location);
-            url.searchParams.set('postpage', page);
-            window.history.pushState({}, '', url);
             renderFeed();
           }
         });
       });
     }
 
-    container.querySelectorAll('.post-card').forEach(card => {
-      card.addEventListener('click', function(e) {
-        if (e.target.closest('button')) return;
+    // ===== 事件绑定 =====
+    // 点击整行跳转帖子详情（但要排除点击 a 标签的情况）
+    container.querySelectorAll('.topic-row').forEach(row => {
+      row.addEventListener('click', function(e) {
+        if (e.target.closest('a')) return;
         const postId = this.dataset.postid;
         switchToPost(postId);
       });
     });
 
-    container.querySelectorAll('.post-username').forEach(username => {
-      username.addEventListener('click', function(e) {
+    // 点击用户名跳转用户主页
+    container.querySelectorAll('.topic-author').forEach(el => {
+      el.addEventListener('click', function(e) {
         e.stopPropagation();
+        e.preventDefault();
         switchPage('user', this.dataset.username);
       });
     });
 
-    container.querySelectorAll('.post-image').forEach(image => {
-      image.addEventListener('click', function(e) {
-        e.stopPropagation();
-        openImageViewer(this.src);
-      });
-    });
-
-    container.querySelectorAll('.action-report').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!currentUser) { alert('请先登录'); return; }
-        reportTargetPostId = this.dataset.postid;
-        document.getElementById('reportModal').classList.add('active');
-      });
-    });
-    container.querySelectorAll('.action-delete').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (confirm('确定要删除这条帖子吗？')) {
-          API.deletePost(this.dataset.postid).then(() => {
-            renderFeed();
-            renderStats();
-          }).catch(err => alert('删除失败：' + err.message));
-        }
-      });
-    });
   }).catch(err => {
-    container.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px 0;">加载失败：' + escapeHTML(err.message) +
-      '</div>';
+    container.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px 0;">加载失败：' + escapeHTML(err.message) + '</div>';
   });
 }
 
 function renderStats() {
   API.getStats().then(stats => {
-    document.getElementById('statTopics').textContent = stats.topics || 0;
-    document.getElementById('statPosts').textContent = stats.posts || 0;
-    document.getElementById('statUsers').textContent = stats.users || 0;
-    // 在线人数已移除
+    const topicsEl = document.getElementById('statTopics');
+    const postsEl = document.getElementById('statPosts');
+    const usersEl = document.getElementById('statUsers');
+    if (topicsEl) topicsEl.textContent = stats.topics || 0;
+    if (postsEl) postsEl.textContent = stats.posts || 0;
+    if (usersEl) usersEl.textContent = stats.users || 0;
+
+    const topics2El = document.getElementById('statTopics2');
+    const posts2El = document.getElementById('statPosts2');
+    const users2El = document.getElementById('statUsers2');
+    if (topics2El) topics2El.textContent = stats.topics || 0;
+    if (posts2El) posts2El.textContent = stats.posts || 0;
+    if (users2El) users2El.textContent = stats.users || 0;
   }).catch(() => {});
 }
 
 function renderLinks() {
   API.getLinks().then(links => {
     const ul = document.getElementById('friendlyLinks');
-    if (!links || links.length === 0) {
-      ul.innerHTML = '<li style="color:#94a3b8;font-size:13px;">暂无链接</li>';
-      return;
+    if (ul) {
+      if (!links || links.length === 0) {
+        ul.innerHTML = '<li style="color:#94a3b8;font-size:13px;">暂无链接</li>';
+      } else {
+        let html = '';
+        links.forEach(l => {
+          html += '<li><a href="' + escapeHTML(safeURL(l.url, { allowRelative: false })) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(l.title) + '</a></li>';
+        });
+        ul.innerHTML = sanitizeHTML(html);
+      }
     }
-    let html = '';
-    links.forEach(l => {
-      html += '<li><a href="' + escapeHTML(safeURL(l.url, { allowRelative: false })) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(l.title) + '</a></li>';
-    });
-    ul.innerHTML = sanitizeHTML(html);
+
+    const ul2 = document.getElementById('friendlyLinks2');
+    if (ul2) {
+      if (!links || links.length === 0) {
+        ul2.innerHTML = '<li style="color:#94a3b8;font-size:13px;">暂无链接</li>';
+      } else {
+        let html = '';
+        links.forEach(l => {
+          html += '<li><a href="' + escapeHTML(safeURL(l.url, { allowRelative: false })) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(l.title) + '</a></li>';
+        });
+        ul2.innerHTML = sanitizeHTML(html);
+      }
+    }
   }).catch(() => {});
 }
 
@@ -237,9 +217,6 @@ document.querySelectorAll('.tab').forEach(tab => {
     this.classList.add('active');
     currentSort = this.dataset.sort;
     currentPageNum = 1;
-    const url = new URL(window.location);
-    url.searchParams.delete('postpage');
-    window.history.pushState({}, '', url);
     renderFeed();
   });
 });
