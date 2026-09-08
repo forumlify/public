@@ -2568,10 +2568,9 @@ a.btn-secondary {
 }
 
 /* ============================================================
-   📐 主页双栏布局（参考 NHT 风格）
+   📐 主页布局（Discourse 风格）
    ============================================================ */
 
-/* 主页容器：主内容 + 右侧面板 */
 #app {
   display: flex;
   gap: 28px;
@@ -2581,22 +2580,154 @@ a.btn-secondary {
   align-items: flex-start;
 }
 
-/* 主内容区（帖子流） */
 #feed {
   flex: 1;
   min-width: 0;
 }
 
-/* 右侧面板（统计 + 友链） */
+/* 帖子列表大卡片（Discourse 风格） */
+.topics-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+/* 每个帖子行（分割线分隔） */
+.topic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: background var(--transition);
+  gap: 16px;
+}
+
+.topic-row:last-child {
+  border-bottom: none;
+}
+
+.topic-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 帖子左侧信息（标题 + 元数据） */
+.topic-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.topic-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--glass-text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.topic-title a {
+  color: var(--glass-text);
+  text-decoration: none;
+}
+
+.topic-title a:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* 前缀标签（Discourse 风格小胶囊） */
+.topic-prefix-tag {
+  display: inline-block;
+  background: var(--primary-soft-bg);
+  color: var(--primary-soft-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.topic-meta {
+  font-size: 12px;
+  color: var(--glass-text-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.topic-meta .topic-author {
+  color: var(--glass-text-secondary);
+  font-weight: 500;
+}
+
+.topic-meta .topic-author:hover {
+  color: var(--primary);
+}
+
+.topic-meta .topic-time {
+  color: var(--glass-text-light);
+}
+
+/* 右侧回复数 pill（Discourse 风格） */
+.topic-replies {
+  flex-shrink: 0;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--glass-text-secondary);
+  text-align: center;
+  min-width: 40px;
+}
+
+.topic-replies.high {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* 置顶/精华/锁定 状态小标记 */
+.topic-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--glass-text-light);
+  margin-left: 8px;
+}
+
+.topic-status.pinned {
+  color: #d97706;
+}
+
+.topic-status.featured {
+  color: #d97706;
+}
+
+.topic-status.locked {
+  color: var(--glass-text-light);
+}
+
+/* 右侧面板 */
 #sidebar {
-  width: 240px;
+  width: 220px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* 统计卡片 & 友链卡片 */
 .stats-box,
 .links-box {
   background: var(--glass-bg);
@@ -2622,12 +2753,6 @@ a.btn-secondary {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 12px;
-}
-
-.stats-box h4 svg,
-.links-box h4 svg {
-  margin-right: 6px;
-  color: var(--primary);
 }
 
 .stat-item {
@@ -2671,93 +2796,56 @@ a.btn-secondary {
   text-decoration: underline;
 }
 
-/* 帖子卡片（NHT 风格微调） */
-.post-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 18px 22px;
-  margin-bottom: 12px;
-  transition: all var(--transition);
-  cursor: pointer;
-  box-shadow: var(--glass-shadow);
-}
-
-.post-card:hover {
-  background: rgba(255, 255, 255, 0.28);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.10);
-}
-
-/* ============================================================
-   ⚙️ 设置页面侧边栏（参考 NHT 风格）
-   ============================================================ */
-
-.settings-sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 8px 0;
-  box-shadow: var(--glass-shadow);
-  position: sticky;
-  top: 84px;
-}
-
-.settings-nav-item {
+/* 顶部操作栏 */
+.feed-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
   gap: 10px;
-  padding: 10px 18px;
-  color: var(--glass-text-secondary);
-  text-decoration: none;
+}
+
+.feed-header-left {
+  display: flex;
+  gap: 4px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: 6px 18px;
   font-size: 14px;
   font-weight: 500;
-  transition: all var(--transition);
-  border-left: 3px solid transparent;
+  color: var(--glass-text-secondary);
   cursor: pointer;
+  border-radius: calc(var(--radius-sm) - 2px);
+  transition: all 0.3s ease;
 }
 
-.settings-nav-item:hover {
-  background: rgba(255, 255, 255, 0.15);
+.tab:hover {
   color: var(--glass-text);
 }
 
-.settings-nav-item.active {
+.tab.active {
   background: rgba(255, 255, 255, 0.2);
-  color: var(--primary);
-  border-left-color: var(--primary);
+  color: var(--glass-text);
 }
 
-.settings-nav-item .nav-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  flex-shrink: 0;
+.fab-btn {
+  padding: 8px 22px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.settings-nav-item .nav-icon svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-}
-
-.settings-content {
-  flex: 1;
-  min-width: 0;
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 20px 24px;
-  box-shadow: var(--glass-shadow);
+.fab-btn svg {
+  margin-right: 6px;
 }
 
 /* ============================================================
@@ -2782,40 +2870,32 @@ a.btn-secondary {
     min-width: 140px;
   }
 
-  .settings-sidebar {
-    width: 100%;
-    position: static;
-    display: flex;
+  .topic-row {
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 8px;
-    border: none;
-    background: none;
-    box-shadow: none;
-    backdrop-filter: none;
+    padding: 10px 16px;
   }
 
-  .settings-nav-item {
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    padding: 8px 14px;
-    border-radius: var(--radius-sm);
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+  .topic-replies {
+    margin-left: auto;
   }
 
-  .settings-nav-item.active {
-    border-bottom-color: var(--primary);
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .settings-content {
-    padding: 16px;
-  }
-
-  .settings-layout {
+  .feed-header {
     flex-direction: column;
-    gap: 16px;
+    align-items: stretch;
+  }
+
+  .feed-header-left {
+    display: flex;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+  }
+
+  .fab-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -2827,5 +2907,15 @@ a.btn-secondary {
   .stats-box,
   .links-box {
     min-width: unset;
+  }
+
+  .topic-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .topic-replies {
+    align-self: flex-start;
   }
 }
