@@ -70,21 +70,24 @@
     </div>
   </nav>
 
-  <!-- ===== 主内容区 ===== -->
+  <!-- ===== 主内容区（Discourse 风格） ===== -->
   <div id="app">
     <main id="feed">
       <div class="feed-header">
         <div class="feed-header-left">
-          <button class="tab active" data-sort="latest">最新发布</button>
-          <button class="tab" data-sort="hot">最新回复</button>
+          <button class="tab active" data-sort="latest">最新</button>
+          <button class="tab" data-sort="hot">最热</button>
         </div>
         <button id="fab" class="btn-primary fab-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          发布新帖
+          新主题
         </button>
       </div>
-      <div id="postList">
-        <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
+
+      <div class="topics-box">
+        <div id="postList">
+          <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
+        </div>
       </div>
     </main>
 
@@ -137,9 +140,7 @@
       </h2>
     </div>
 
-    <!-- 侧边栏布局 -->
     <div class="settings-layout" style="max-width:1200px;margin:0 auto;width:100%;display:flex;gap:28px;align-items:flex-start;">
-      <!-- 左侧：侧边栏 -->
       <aside class="settings-sidebar" style="width:200px;flex-shrink:0;background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:8px 0;box-shadow:var(--glass-shadow);position:sticky;top:84px;">
         <nav class="settings-nav">
           <a href="#" class="settings-nav-item active" data-settings-tab="profile">
@@ -163,7 +164,6 @@
         </nav>
       </aside>
 
-      <!-- 右侧：内容区 -->
       <main class="settings-content" style="flex:1;min-width:0;background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--glass-shadow);">
         <div id="settingsContent">
           <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
@@ -185,7 +185,6 @@
       </h2>
     </div>
 
-    <!-- 侧边栏布局 -->
     <div class="admin-layout" style="max-width:1200px;margin:0 auto;width:100%;">
       <aside class="admin-sidebar">
         <nav class="admin-nav">
@@ -397,7 +396,7 @@
       <span class="close" data-modal="forgotPasswordModal">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </span>
-      <h2 style="margin-bottom:16px;">🔑 重置密码</h2>
+      <h2 style="margin-bottom:16px;">重置密码</h2>
       <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">输入你的邮箱和一个未使用的恢复码</p>
       <input type="email" id="resetEmail" placeholder="邮箱" />
       <input type="text" id="resetRecoveryCode" placeholder="恢复码（格式：ABCD-1234-EFGH-5678）" style="font-family:monospace;letter-spacing:0.5px;" />
@@ -411,7 +410,7 @@
   <div id="messageListModal" class="modal">
     <div class="modal-content" style="max-width:480px;max-height:80vh;padding:0;overflow:hidden;display:flex;flex-direction:column;border-radius:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <h2 style="font-size:18px;margin:0;">✉️ 私信</h2>
+        <h2 style="font-size:18px;margin:0;">私信</h2>
         <span class="close" data-modal="messageListModal" style="font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;">&times;</span>
       </div>
       <div id="messageListContent" style="flex:1;overflow-y:auto;padding:0;">
