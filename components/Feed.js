@@ -209,7 +209,7 @@ export default function Feed({ onOpenModal, onReport }) {
                   </div>
                 )}
                 <div className="post-actions">
-                  <span>
+                  <span className="post-replies" aria-label={`${p.reply_count || 0} replies`}>
                     <Icon name="message" size={14} /> {p.reply_count || 0}
                   </span>
                   <button className="action-report" onClick={(e) => {

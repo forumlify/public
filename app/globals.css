@@ -580,6 +580,78 @@ svg {
   background: var(--feed-card-hover-bg);
 }
 
+/* Lite 版主题列表的视觉语言：更清晰的层级、元信息和回复数胶囊，
+   保留 Next 版正文、图片和操作能力。 */
+#feed .post-card {
+  padding: 16px 20px;
+  border-color: color-mix(in srgb, var(--glass-border) 72%, var(--primary) 28%);
+  box-shadow: 0 5px 20px rgba(25, 45, 65, 0.07);
+}
+
+#feed .post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(25, 45, 65, 0.12);
+}
+
+#feed .post-header {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#feed .post-title {
+  margin: 4px 0 6px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+#feed .post-content {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+#feed .post-actions {
+  gap: 10px;
+  padding-top: 10px;
+}
+
+#feed .post-replies {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 42px;
+  justify-content: center;
+  padding: 3px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-bg) 76%, var(--primary) 24%);
+  font-weight: 600;
+  color: var(--glass-text-secondary);
+}
+
+#feed .post-pin-state {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-bg) 70%, transparent);
+}
+
+@media (max-width: 768px) {
+  #feed .post-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+  }
+
+  #feed .post-time {
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .post-header {
   display: flex;
   align-items: center;
