@@ -164,12 +164,14 @@ export default function Feed({ onOpenModal, onReport }) {
               posts.map((p) => {
                 const time = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
                 return (
-                  <div key={p.id} className="post-card" data-post-id={p.id} data-post-ref={p.post_number || p.id} data-username={p.username || ''} style={{ cursor: 'pointer' }}
+                  <div key={p.id} className="post-card topic-row" data-post-id={p.id} data-post-ref={p.post_number || p.id} data-username={p.username || ''} style={{ cursor: 'pointer' }}
                     onClick={(e) => openPost(p.post_number || p.id, e.currentTarget, p)}>
-                {p.is_pinned && (
-                  <div className="post-pin-state" style={{ width: 'fit-content', display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, color: 'var(--primary)', fontWeight: 600, marginBottom: 4 }}><Icon name="pin" size={12} /> {t('feed.pinned')}</div>
-                )}
-                <div className="post-header">
+                <div className="topic-main">
+                  <div className="topic-title-line">
+                    {p.is_pinned && <span className="post-pin-state"><Icon name="pin" size={12} /> {t('feed.pinned')}</span>}
+                    <div className="post-title">{p.title || t('feed.noTitle')}</div>
+                  </div>
+                <div className="post-header topic-meta">
                   <img
                     src={p.avatar_url || avatar(p.username)}
                     className="post-avatar"
@@ -199,8 +201,7 @@ export default function Feed({ onOpenModal, onReport }) {
                     </span>
                   )}
                 </div>
-                <div className="post-title">{p.title || t('feed.noTitle')}</div>
-                <div className="post-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(p.content) }} />
+                <div className="topic-preview" dangerouslySetInnerHTML={{ __html: renderMarkdown(p.content) }} />
                 {p.images && p.images.length > 0 && (
                   <div className="post-images">
                     {p.images.map((img, i) => (
@@ -208,10 +209,11 @@ export default function Feed({ onOpenModal, onReport }) {
                     ))}
                   </div>
                 )}
-                <div className="post-actions">
-                  <span className="post-replies" aria-label={`${p.reply_count || 0} replies`}>
-                    <Icon name="message" size={14} /> {p.reply_count || 0}
-                  </span>
+                </div>
+                <div className="topic-replies post-replies" aria-label={`${p.reply_count || 0} replies`}>
+                  <Icon name="message" size={14} /> {p.reply_count || 0}
+                </div>
+                <div className="post-actions topic-actions">
                   <button className="action-report" onClick={(e) => {
                     e.stopPropagation();
                     if (!currentUser) { toast(t('newPost.pleaseLogin'), 'warning'); return; }

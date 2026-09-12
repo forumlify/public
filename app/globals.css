@@ -593,6 +593,68 @@ svg {
   box-shadow: 0 12px 28px rgba(25, 45, 65, 0.12);
 }
 
+#feed .topic-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+
+#feed .topic-main {
+  flex: 1;
+  min-width: 0;
+}
+
+#feed .topic-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+#feed .topic-title-line .post-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#feed .topic-meta {
+  margin: 5px 0 0;
+  gap: 8px;
+}
+
+#feed .topic-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--glass-text-light);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#feed .topic-replies {
+  flex: 0 0 auto;
+  min-width: 38px;
+  padding: 4px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-bg) 78%, var(--primary) 22%);
+  color: var(--glass-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+#feed .topic-actions {
+  display: none;
+}
+
 #feed .post-header {
   gap: 8px;
   margin-bottom: 10px;
@@ -642,6 +704,18 @@ svg {
   #feed .post-card {
     padding: 14px 16px;
     border-radius: var(--radius-sm);
+  }
+
+  #feed .topic-row {
+    gap: 10px;
+    padding: 13px 14px;
+  }
+
+  #feed .topic-title-line .post-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   #feed .post-time {
