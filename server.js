@@ -310,6 +310,18 @@ app.get('/api/settings', async (req, res) => {
     const r = await pool.query('SELECT key, value FROM settings');
     const settings = {};
     r.rows.forEach(row => { settings[row.key] = row.value; });
+
+    // 仅在「部署者配置了引导令牌」且「尚未存在管理员」时，前端才需要
+    // 展示管理员初始化入口。两者任一不满足，注册框就完全是普通注册。
+    // 这里只返回布尔值，不泄露令牌本身或其长度。
+    const bootstrapConfigured = Boolean(process.env.ADMIN_BOOTSTRAP_TOKEN);
+    let adminExists = true;
+    if (bootstrapConfigured) {
+      const adminResult = await pool.query("SELECT EXISTS(SELECT 1 FROM users WHERE role = 'admin') AS exists");
+      adminExists = adminResult.rows[0].exists;
+    }
+    settings.bootstrap_required = bootstrapConfigured && !adminExists;
+
     res.json(settings);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });

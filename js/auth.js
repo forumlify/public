@@ -34,14 +34,36 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
 // 注册事件绑定
 document.getElementById('registerBtn').addEventListener('click', () => {
   refreshCaptcha('reg');
+  syncBootstrapTokenField();
   document.getElementById('registerModal').classList.add('active');
 });
+
+// 管理员初始化令牌输入框仅在首次部署且配置了引导令牌时出现。
+// 其余情况（普通部署、已初始化完成）普通用户完全看不到它。
+async function syncBootstrapTokenField() {
+  const field = document.getElementById('regBootstrapToken');
+  if (!field) return;
+  try {
+    const settings = await API.getSettings();
+    const required = settings.bootstrap_required === true;
+    field.style.display = required ? '' : 'none';
+    if (!required) field.value = '';
+  } catch (err) {
+    // 取不到设置时按「不需要」处理，避免把内部机制暴露给普通用户。
+    field.style.display = 'none';
+    field.value = '';
+  }
+}
 
 document.getElementById('registerSubmit').addEventListener('click', async () => {
   const username = document.getElementById('regUsername').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
-  const bootstrapToken = document.getElementById('regBootstrapToken').value.trim();
+  const bootstrapField = document.getElementById('regBootstrapToken');
+  // 字段被隐藏时视为未提供，避免普通注册误传空串触发后端的令牌校验分支。
+  const bootstrapToken = bootstrapField && bootstrapField.style.display !== 'none'
+    ? bootstrapField.value.trim()
+    : '';
   const captchaInput = document.getElementById('regCaptchaInput').value.trim();
   const captchaAnswer = parseInt(document.getElementById('regCaptchaInput').dataset.answer);
   if (!username || !email || !password) { alert('请填写完整信息'); return; }
@@ -58,7 +80,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
   document.getElementById('regUsername').value = '';
   document.getElementById('regEmail').value = '';
   document.getElementById('regPassword').value = '';
-  document.getElementById('regBootstrapToken').value = '';
+  if (bootstrapField) bootstrapField.value = '';
   document.getElementById('regCaptchaInput').value = '';
 
   try {
