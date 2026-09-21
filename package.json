@@ -12,7 +12,6 @@
     "migrate": "node scripts/migrate.js",
     "check": "node scripts/check-syntax.js",
     "test": "node --test"
-
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
@@ -21,7 +20,7 @@
     "express-rate-limit": "8.6.2",
     "helmet": "8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "2.2.0",
+    "multer": "^2.3.0",
     "pg": "^8.11.3"
   },
   "devDependencies": {
