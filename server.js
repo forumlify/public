@@ -6,7 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { rateLimit } = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
@@ -85,9 +85,14 @@ const apiLimiter = rateLimit({
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: 5,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req, res) => {
+    const account = String((req.body && (req.body.email || req.body.username)) || '').trim().toLowerCase();
+    return account ? `${ipKeyGenerator(req, res)}:${account}` : ipKeyGenerator(req, res);
+  },
   handler: (req, res) => res.status(429).json({ error: '尝试次数过多，请稍后重试' }),
 });
 
