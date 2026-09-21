@@ -483,6 +483,10 @@ function renderAdminSmtp() {
 
       <label for="smtpHost">SMTP 服务器</label>
       <input type="text" id="smtpHost" placeholder="smtp.example.com" autocomplete="off" />
+      <div class="smtp-hint">
+        Resend 填 <code>smtp.resend.com</code>，端口 465、加密选 SSL/TLS、用户名填 <code>resend</code>。
+        其他服务商请填写其官方 SMTP 地址。
+      </div>
 
       <div class="smtp-row">
         <div>
@@ -503,13 +507,23 @@ function renderAdminSmtp() {
 
       <label for="smtpPassword">密码 / 授权码</label>
       <input type="password" id="smtpPassword" placeholder="留空表示不修改已保存的密码" autocomplete="new-password" />
-      <div class="smtp-hint">QQ、163 等邮箱需填写「授权码」而非登录密码。</div>
+      <div class="smtp-hint">
+        QQ、163 等邮箱填「授权码」；<strong>Resend 填 API Key</strong>（re_ 开头）。
+      </div>
 
       <label for="smtpFromName">发件人名称</label>
       <input type="text" id="smtpFromName" placeholder="例如：论坛名称" />
 
       <label for="smtpFromEmail">发件人邮箱 <span style="color:#ef4444;">*</span></label>
       <input type="email" id="smtpFromEmail" placeholder="noreply@example.com" />
+      <div class="smtp-hint">
+        必须是你已在邮件服务商处验证过的域名下的地址，否则会被拒收。
+      </div>
+
+      <label class="smtp-check" style="margin-bottom:20px;">
+        <input type="checkbox" id="smtpAllowSelfSigned" />
+        允许自签证书（仅自建邮件服务器需要）
+      </label>
 
       <div class="smtp-actions">
         <button id="smtpSaveBtn" class="btn-primary" style="padding:10px 22px;">保存配置</button>
@@ -541,6 +555,7 @@ function renderAdminSmtp() {
     $('smtpUser').value = cfg.user || '';
     $('smtpFromName').value = cfg.from_name || '';
     $('smtpFromEmail').value = cfg.from_email || '';
+    $('smtpAllowSelfSigned').checked = cfg.allow_self_signed === true;
     // 密码永不回显，只用占位文字提示是否已设置
     $('smtpPassword').placeholder = cfg.password_set
       ? '已保存密码，留空则不修改'
@@ -574,6 +589,7 @@ function renderAdminSmtp() {
       user: $('smtpUser').value.trim(),
       from_name: $('smtpFromName').value.trim(),
       from_email: $('smtpFromEmail').value.trim(),
+      allow_self_signed: $('smtpAllowSelfSigned').checked,
     };
     // 只有填了才提交，避免把已保存的密码覆盖成空
     const pw = $('smtpPassword').value;

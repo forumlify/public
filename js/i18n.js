@@ -412,6 +412,8 @@ const TRANSLATIONS = {
     '注册验证码': '注册验证码',
     '密码重置验证码': '密码重置验证码',
     'Forumlify SMTP 测试邮件': 'Forumlify SMTP 测试邮件',
+    '允许自签证书（仅自建邮件服务器需要）': '允许自签证书（仅自建邮件服务器需要）',
+    '必须是你已在邮件服务商处验证过的域名下的地址，否则会被拒收。': '必须是你已在邮件服务商处验证过的域名下的地址，否则会被拒收。',
   },
 
   'en': {
@@ -822,6 +824,8 @@ const TRANSLATIONS = {
     '注册验证码': 'Signup verification code',
     '密码重置验证码': 'Password reset code',
     'Forumlify SMTP 测试邮件': 'Forumlify SMTP test email',
+    '允许自签证书（仅自建邮件服务器需要）': 'Allow self-signed certificate (self-hosted servers only)',
+    '必须是你已在邮件服务商处验证过的域名下的地址，否则会被拒收。': 'Must be an address on a domain you have verified with your email provider, otherwise it will be rejected.',
   }
 };
 

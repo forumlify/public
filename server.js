@@ -381,6 +381,7 @@ app.get('/api/admin/smtp', auth, admin, async (req, res) => {
       user: config.user,
       from_name: config.fromName,
       from_email: config.fromEmail,
+      allow_self_signed: config.allowSelfSigned,
       // 只告诉前端「有没有设置过」，不返回明文
       password_set: Boolean(config.password),
       configured: mailer.isConfigComplete(config),
@@ -392,11 +393,13 @@ app.get('/api/admin/smtp', auth, admin, async (req, res) => {
 
 // 保存 SMTP 配置
 app.put('/api/admin/smtp', auth, admin, async (req, res) => {
-  const { enabled, host, port, secure, user, password, from_name, from_email } = req.body;
+  const { enabled, host, port, secure, user, password, from_name, from_email, allow_self_signed } = req.body;
 
   if (typeof enabled !== 'boolean' || typeof secure !== 'boolean') {
     return res.status(400).json({ error: '启用状态与加密方式必须为布尔值' });
   }
+  // 缺省视为关闭，保持向后兼容
+  const allowSelfSigned = allow_self_signed === true;
 
   const portNumber = Number(port);
   if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
@@ -436,6 +439,7 @@ app.put('/api/admin/smtp', auth, admin, async (req, res) => {
       ['smtp_user', userValue],
       ['smtp_from_name', typeof from_name === 'string' ? from_name.trim() : ''],
       ['smtp_from_email', fromEmailValue],
+      ['smtp_allow_self_signed', String(allowSelfSigned)],
     ];
 
     // 密码留空表示「保持原值」，避免管理员只改端口却把密码清掉。

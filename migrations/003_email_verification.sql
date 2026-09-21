@@ -51,6 +51,7 @@ INSERT INTO settings (key, value) VALUES
   ('smtp_password',   ''),
   ('smtp_from_name',  ''),
   ('smtp_from_email', ''),
+  ('smtp_allow_self_signed', 'false'),
   ('email_verify_required', 'false')
 ON CONFLICT (key) DO NOTHING;
 
