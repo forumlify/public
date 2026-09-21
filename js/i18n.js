@@ -278,6 +278,87 @@ const TRANSLATIONS = {
 
     // ===== 论坛名称 =====
     '论坛名称': '论坛名称',
+
+    // ===== 补充覆盖：操作状态与错误提示 =====
+    // 源码里这些提示多带「：」后缀拼接具体原因，与上方不带冒号的
+    // 短词是不同字符串，必须分别登记才能命中。
+    '保存失败：': '保存失败：',
+    '编辑成功！': '编辑成功！',
+    '编辑失败：': '编辑失败：',
+    '操作失败：': '操作失败：',
+    '打开私信失败：': '打开私信失败：',
+    '登录失败：': '登录失败：',
+    '发布失败：': '发布失败：',
+    '发送失败：': '发送失败：',
+    '恢复码生成失败:': '恢复码生成失败:',
+    '回复失败：': '回复失败：',
+    '获取恢复码失败：': '获取恢复码失败：',
+    '举报失败：': '举报失败：',
+    '删除失败：': '删除失败：',
+    '上传失败：': '上传失败：',
+    '添加失败：': '添加失败：',
+    '重新生成失败：': '重新生成失败：',
+    '注册失败：': '注册失败：',
+    '页面加载失败：': '页面加载失败：',
+    '加载失败：': '加载失败：',
+
+    // ===== 补充覆盖：表单校验与按钮 =====
+    '保存修改': '保存修改',
+    '密码至少6位': '密码至少6位',
+    '新密码至少6位': '新密码至少6位',
+    '验证码错误，请重新计算': '验证码错误，请重新计算',
+    '用户名不能为空': '用户名不能为空',
+    '请输入论坛名称': '请输入论坛名称',
+    '请填写回复内容': '请填写回复内容',
+    '页面名称只允许字母、数字、短横线和下划线': '页面名称只允许字母、数字、短横线和下划线',
+    '移除': '移除',
+    '名称': '名称',
+    '图片': '图片',
+    '未知': '未知',
+    '系统': '系统',
+    '无权限访问': '无权限访问',
+    '匿名用户': '匿名用户',
+    '发布中...': '发布中...',
+    '上传图片中...': '上传图片中...',
+    '松开上传': '松开上传',
+    '每篇帖子最多上传 6 张图片': '每篇帖子最多上传 6 张图片',
+    '上传响应无效': '上传响应无效',
+    '图片上传失败': '图片上传失败',
+    '已选择:': '已选择:',
+    '举报不成立': '举报不成立',
+    '已删除违规帖子': '已删除违规帖子',
+    '暂无用户': '暂无用户',
+    '暂无友情链接': '暂无友情链接',
+    '暂无消息': '暂无消息',
+
+    // ===== 补充覆盖：确认对话框 =====
+    '确定要': '确定要',
+    '置顶吗？': '置顶吗？',
+    '确定要退出吗？': '确定要退出吗？',
+    '确定删除该链接吗？': '确定删除该链接吗？',
+    '确定要删除这条回复吗？': '确定要删除这条回复吗？',
+    '确定要删除这条帖子吗？': '确定要删除这条帖子吗？',
+    '确定要删除这个页面吗？': '确定要删除这个页面吗？',
+    '确定要删除该帖子并标记举报为已处理吗？': '确定要删除该帖子并标记举报为已处理吗？',
+    '确定要删除自定义 CSS 吗？将恢复默认样式。': '确定要删除自定义 CSS 吗？将恢复默认样式。',
+    '重新生成将替换所有旧的恢复码，确定继续吗？': '重新生成将替换所有旧的恢复码，确定继续吗？',
+
+    // ===== 补充覆盖：混合文案 =====
+    '当有人回复你的帖子或处理你的举报时，会在这里通知你': '当有人回复你的帖子或处理你的举报时，会在这里通知你',
+    '举报已提交，管理员将尽快处理': '举报已提交，管理员将尽快处理',
+    '注册成功，但自动登录失败，请手动登录：': '注册成功，但自动登录失败，请手动登录：',
+    '注册并登录成功，但恢复码生成失败。请稍后在设置中重新生成。': '注册并登录成功，但恢复码生成失败。请稍后在设置中重新生成。',
+    '支持 HTML、CSS（&lt;style&gt;）、JS（&lt;script&gt;），内容会在独立的沙盒中渲染': '支持 HTML、CSS（&lt;style&gt;）、JS（&lt;script&gt;），内容会在独立的沙盒中渲染',
+
+    // ===== 动态文本前缀 =====
+    // 「剩余 N 个可用恢复码」由模板字符串生成，整串无法匹配，
+    // 因此登记可命中的固定片段。
+    '剩余': '剩余',
+    '个可用恢复码': '个可用恢复码',
+    '原因：': '原因：',
+    '状态：': '状态：',
+    '处理人：': '处理人：',
+    '帖子：': '帖子：',
   },
 
   'en': {
@@ -504,7 +585,10 @@ const TRANSLATIONS = {
     '用户不存在': 'User not found',
     '这个人很懒，什么都没写': 'This user is lazy, nothing written',
     '加入': 'Joined',
-    '于': '',
+    // 「于」在中文句式里连接日期（加入于 2024-01-01），英文不需要对应词。
+    // 这里保留原词而非空串：walk() 命中后用译文整体替换原文，空串会把
+    // 文字抹掉；同时该键实际不会被单独命中（源码中是「加入于」整串）。
+    '于': '于',
     '发了': 'Posted',
     '个帖子': ' posts',
     '帖': ' posts',
@@ -554,6 +638,86 @@ const TRANSLATIONS = {
 
     // ===== 论坛名称 =====
     '论坛名称': 'Forum Name',
+
+    // ===== 补充覆盖：操作状态与错误提示 =====
+    '保存失败：': 'Save failed: ',
+    '编辑成功！': 'Edited successfully!',
+    '编辑失败：': 'Edit failed: ',
+    '操作失败：': 'Operation failed: ',
+    '打开私信失败：': 'Failed to open messages: ',
+    '登录失败：': 'Login failed: ',
+    '发布失败：': 'Publish failed: ',
+    '发送失败：': 'Send failed: ',
+    '恢复码生成失败:': 'Failed to generate recovery codes: ',
+    '回复失败：': 'Reply failed: ',
+    '获取恢复码失败：': 'Failed to load recovery codes: ',
+    '举报失败：': 'Report failed: ',
+    '删除失败：': 'Delete failed: ',
+    '上传失败：': 'Upload failed: ',
+    '添加失败：': 'Add failed: ',
+    '重新生成失败：': 'Regeneration failed: ',
+    '注册失败：': 'Registration failed: ',
+    '页面加载失败：': 'Failed to load page: ',
+    '加载失败：': 'Failed to load: ',
+
+    // ===== 补充覆盖：表单校验与按钮 =====
+    '保存修改': 'Save Changes',
+    '密码至少6位': 'Password must be at least 6 characters',
+    '新密码至少6位': 'New password must be at least 6 characters',
+    '验证码错误，请重新计算': 'Incorrect captcha, please try again',
+    '用户名不能为空': 'Username cannot be empty',
+    '请输入论坛名称': 'Please enter a forum name',
+    '请填写回复内容': 'Please enter your reply',
+    '页面名称只允许字母、数字、短横线和下划线': 'Page name may only contain letters, numbers, hyphens and underscores',
+    '移除': 'Remove',
+    '名称': 'Name',
+    '图片': 'Image',
+    '未知': 'Unknown',
+    '系统': 'System',
+    '无权限访问': 'Access denied',
+    '匿名用户': 'Anonymous',
+    '发布中...': 'Publishing...',
+    '上传图片中...': 'Uploading image...',
+    '松开上传': 'Release to upload',
+    '每篇帖子最多上传 6 张图片': 'Up to 6 images per post',
+    '上传响应无效': 'Invalid upload response',
+    '图片上传失败': 'Image upload failed',
+    '已选择:': 'Selected:',
+    '举报不成立': 'Report dismissed',
+    '已删除违规帖子': 'Removed the violating post',
+    '暂无用户': 'No users',
+    '暂无友情链接': 'No links',
+    '暂无消息': 'No messages',
+
+    // ===== 补充覆盖：确认对话框 =====
+    '确定要': 'Are you sure you want to ',
+    '置顶吗？': '?',
+    '确定要退出吗？': 'Are you sure you want to log out?',
+    '确定删除该链接吗？': 'Delete this link?',
+    '确定要删除这条回复吗？': 'Delete this reply?',
+    '确定要删除这条帖子吗？': 'Delete this post?',
+    '确定要删除这个页面吗？': 'Delete this page?',
+    '确定要删除该帖子并标记举报为已处理吗？': 'Delete this post and mark the report as handled?',
+    '确定要删除自定义 CSS 吗？将恢复默认样式。': 'Delete the custom CSS? The default styles will be restored.',
+    '重新生成将替换所有旧的恢复码，确定继续吗？': 'Regenerating will replace all existing recovery codes. Continue?',
+
+    // ===== 补充覆盖：混合文案 =====
+    '当有人回复你的帖子或处理你的举报时，会在这里通知你': 'You will be notified here when someone replies to your post or your report is handled',
+    '举报已提交，管理员将尽快处理': 'Report submitted. An administrator will review it shortly',
+    '注册成功，但自动登录失败，请手动登录：': 'Registration succeeded, but automatic login failed. Please log in manually: ',
+    '注册并登录成功，但恢复码生成失败。请稍后在设置中重新生成。': 'Registered and signed in, but recovery codes could not be generated. Please regenerate them later in Settings.',
+    '支持 HTML、CSS（&lt;style&gt;）、JS（&lt;script&gt;），内容会在独立的沙盒中渲染': 'Supports HTML, CSS (&lt;style&gt;) and JS (&lt;script&gt;). Content renders in an isolated sandbox',
+
+    // ===== 动态文本前缀 =====
+    // 「剩余 N 个可用恢复码」由模板字符串生成，整串无法命中词典，
+    // 因此登记可命中的固定片段。注意这里不能译成空串：万一该词以
+    // 独立文本节点出现，空串会把文字抹掉。
+    '剩余': 'Remaining:',
+    '个可用恢复码': 'recovery codes remaining',
+    '原因：': 'Reason: ',
+    '状态：': 'Status: ',
+    '处理人：': 'Handled by: ',
+    '帖子：': 'Post: ',
   }
 };
 
