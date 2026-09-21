@@ -3,6 +3,56 @@
 // ============================================================
 
 let currentUser = null;
+
+// ============================================================
+//  带出场动画的关闭
+// ============================================================
+// .modal 与 .dropdown-menu 的默认状态是 display:none，直接移除类名会让
+// 元素瞬间消失，CSS 动画没有机会播放。这里先挂上 .closing 播放收起
+// 动画，等 animationend 再移除类名恢复默认状态。
+//
+// 用 requestAnimationFrame 等待样式生效后再挂类，避免元素在同一帧内
+// 被移除而跳过动画；animationend 同时兜底超时，防止动画未触发时卡住。
+
+const CLOSING_CLASS = 'closing';
+const CLOSE_FALLBACK_MS = 260;
+
+function closeWithAnimation(el, className) {
+  if (!el || !el.classList.contains(className)) return;
+  // 已经在收起过程中则忽略重复调用
+  if (el.classList.contains(CLOSING_CLASS)) return;
+
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    el.classList.remove(CLOSING_CLASS);
+    el.classList.remove(className);
+    el.removeEventListener('animationend', onEnd);
+  };
+  const onEnd = event => {
+    if (event.target === el) finish();
+  };
+
+  el.addEventListener('animationend', onEnd);
+  // 元素不可见（无动画）或动画被浏览器跳过时兜底
+  const fallback = setTimeout(finish, CLOSE_FALLBACK_MS);
+
+  requestAnimationFrame(() => {
+    // 若期间元素被重新打开（类名已被移除），取消本次关闭，
+    // 否则会把 .closing 挂到一个本应显示的弹窗上。
+    if (!el.classList.contains(className) || finished) {
+      clearTimeout(fallback);
+      el.removeEventListener('animationend', onEnd);
+      return;
+    }
+    el.classList.add(CLOSING_CLASS);
+  });
+}
+
+const closeModal = el => closeWithAnimation(el, 'active');
+const closeDropdown = el => closeWithAnimation(el, 'show');
+
 function showToast(message, type = 'success', duration = 3000) {
   // 移除已有 toast
   const existing = document.querySelector('.toast');
@@ -202,7 +252,7 @@ function openMessageList() {
 }
 
 function closeMessageList() {
-  document.getElementById('messageListModal').classList.remove('active');
+  closeModal(document.getElementById('messageListModal'));
   if (messagePollInterval) {
     clearInterval(messagePollInterval);
     messagePollInterval = null;
@@ -272,7 +322,7 @@ function openChat(conversationId, otherUserId, otherUsername) {
 }
 
 function closeChat() {
-  document.getElementById('chatModal').classList.remove('active');
+  closeModal(document.getElementById('chatModal'));
   if (messagePollInterval) {
     clearInterval(messagePollInterval);
     messagePollInterval = null;
@@ -1176,7 +1226,7 @@ async function init() {
       e.preventDefault();
       e.stopPropagation();
       toggleTheme(e);
-      document.getElementById('dropdownMenu').classList.remove('show');
+      closeDropdown(document.getElementById('dropdownMenu'));
     });
   }
 
@@ -1185,7 +1235,7 @@ async function init() {
     document.getElementById('dropdownMenu').classList.toggle('show');
   });
   document.addEventListener('click', function() {
-    document.getElementById('dropdownMenu').classList.remove('show');
+    closeDropdown(document.getElementById('dropdownMenu'));
   });
 
   document.querySelectorAll('[data-page]').forEach(el => {
@@ -1196,7 +1246,7 @@ async function init() {
         alert('无权限访问');
         return;
       }
-      document.getElementById('dropdownMenu').classList.remove('show');
+      closeDropdown(document.getElementById('dropdownMenu'));
       switchPage(page);
     });
   });
@@ -1243,7 +1293,7 @@ async function init() {
       statusEl.innerHTML = getIcon('success') + ' 重置成功！请登录';
       statusEl.style.color = '#22c55e';
       setTimeout(() => {
-        document.getElementById('forgotPasswordModal').classList.remove('active');
+        closeModal(document.getElementById('forgotPasswordModal'));
         document.getElementById('resetEmail').value = '';
         document.getElementById('resetRecoveryCode').value = '';
         document.getElementById('resetNewPassword').value = '';
@@ -1346,7 +1396,7 @@ async function init() {
     const reason = document.getElementById('reportReason').value;
     try {
       await API.createReport(reportTargetPostId, reason);
-      document.getElementById('reportModal').classList.remove('active');
+      closeModal(document.getElementById('reportModal'));
       alert('举报已提交，管理员将尽快处理');
       reportTargetPostId = null;
     } catch (err) {
@@ -1357,12 +1407,12 @@ async function init() {
   // ===== 模态框关闭 =====
   document.querySelectorAll('.modal .close').forEach(btn => {
     btn.addEventListener('click', function() {
-      document.getElementById(this.dataset.modal).classList.remove('active');
+      closeModal(document.getElementById(this.dataset.modal));
     });
   });
   document.querySelectorAll('.modal').forEach(m => {
     m.addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('active');
+      if (e.target === this) closeModal(this);
     });
   });
 
@@ -1419,7 +1469,7 @@ async function init() {
   document.querySelectorAll('.modal').forEach(m => {
     m.addEventListener('click', function(e) {
       if (e.target === this) {
-        this.classList.remove('active');
+        closeModal(this);
         if (this.id === 'messageListModal') {
           closeMessageList();
         }

@@ -13,7 +13,7 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
   if (!email || !password) { alert('请填写完整信息'); return; }
   try {
     const result = await API.login(email, password);
-    document.getElementById('loginModal').classList.remove('active');
+    closeModal(document.getElementById('loginModal'));
     document.getElementById('loginEmail').value = '';
     document.getElementById('loginPassword').value = '';
     if (result.user) {
@@ -76,7 +76,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     return;
   }
 
-  document.getElementById('registerModal').classList.remove('active');
+  closeModal(document.getElementById('registerModal'));
   document.getElementById('regUsername').value = '';
   document.getElementById('regEmail').value = '';
   document.getElementById('regPassword').value = '';
