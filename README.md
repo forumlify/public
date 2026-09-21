@@ -4,6 +4,8 @@
 
 > 一个简洁、优雅的现代社区系统。5 分钟 Docker 一键部署。
 
+**在线演示：** https://lite.forumlify.org
+
 ## ✨ 特性
 
 - 🎨 精致简约的界面设计，支持亮色/暗色模式
@@ -182,6 +184,44 @@ npm start
 ```bash
 mkdir -p uploads && chmod 755 uploads
 ```
+
+#### 反向代理与 HTTPS
+
+生产环境建议让 Nginx 终止 TLS 并反代到本机的 3000 端口。要点如下：
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name lite.example.org;
+
+    ssl_certificate     /etc/nginx/ssl/lite.example.org.fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/lite.example.org.key;
+
+    # 保留 ACME 挑战路径，否则证书续期会失败
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+配套设置 `.env` 中的 `TRUST_PROXY=true`，否则限流会把所有用户识别为
+同一个来源 IP。应用记录审计日志时也依赖该设置取到真实客户端地址。
+
+两个容易踩的坑：
+
+- **80 端口若已存在其他站点的 `default_server`**，它会接管所有未显式
+  匹配的 Host，导致本域名的 ACME 挑战请求被 301 跳走、证书签发失败。
+  必须为本域名单独写一个 `server_name` 的 80 端口块。
+- **ACME 挑战路径要放在 `return 301` 之前**，否则同样会被重定向。
 
 ## 📁 项目结构
 
