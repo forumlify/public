@@ -346,6 +346,17 @@ function secureTokenMatch(provided, expected) {
     crypto.timingSafeEqual(providedBuffer, expectedBuffer);
 }
 
+// 签发访问令牌。改密码/改邮箱会递增 token_version 使旧令牌失效，
+// 因此这些接口需要用更新后的 token_version 重新签发，避免用户在
+// 敏感操作成功后被强制登出。
+function issueToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role, token_version: user.token_version },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
 // 注册；管理员只能使用部署时配置的一次性引导令牌创建
 app.post('/api/auth/register', async (req, res) => {
   const { email, password, username, bootstrap_token } = req.body;
@@ -434,11 +445,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     req.auditUserId = user.id;
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, token_version: user.token_version },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = issueToken(user);
 
     res.json({
       token,
@@ -651,12 +658,15 @@ app.put('/api/users/:id/password', validateUuidId, auth, async (req, res) => {
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2',
+    const updated = await pool.query(
+      `UPDATE users SET password_hash = $1, token_version = token_version + 1
+       WHERE id = $2
+       RETURNING id, email, role, token_version`,
       [hash, userId]
     );
 
-    res.json({ success: true });
+    // 旧令牌因 token_version 递增而失效，这里补发一个，让本次会话保持登录。
+    res.json({ success: true, token: issueToken(updated.rows[0]) });
   } catch (err) {
     res.status(500).json({ error: '修改失败，请稍后重试' });
   }
@@ -691,12 +701,15 @@ app.put('/api/users/:id/email', validateUuidId, auth, async (req, res) => {
       return res.status(400).json({ error: '邮箱已被占用' });
     }
 
-    await pool.query(
-      'UPDATE users SET email = $1, token_version = token_version + 1 WHERE id = $2',
+    const updated = await pool.query(
+      `UPDATE users SET email = $1, token_version = token_version + 1
+       WHERE id = $2
+       RETURNING id, email, role, token_version`,
       [normalizedEmail, userId]
     );
 
-    res.json({ success: true });
+    // 同上：补发令牌，避免用户改完邮箱就被登出。
+    res.json({ success: true, token: issueToken(updated.rows[0]) });
   } catch (err) {
     res.status(500).json({ error: '修改失败，请稍后重试' });
   }

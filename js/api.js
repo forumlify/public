@@ -375,13 +375,23 @@ const API = {
   // ============================================================
   //  修改密码和邮箱
   // ============================================================
+  // 这两个接口会递增 token_version 使旧令牌失效，服务端随即补发一个
+  // 新令牌。这里必须接住它，否则用户操作成功后会被立刻登出。
+  _persistRefreshedToken(data) {
+    if (data && data.token) {
+      token = data.token;
+      localStorage.setItem('forumlify-token', token);
+    }
+    return data;
+  },
+
   async changePassword(oldPassword, newPassword) {
     const data = await apiFetch('/users/' + currentUser.id + '/password', {
       method: 'PUT',
       body: JSON.stringify({ oldPassword, newPassword })
     });
     if (data.error) throw new Error(data.error);
-    return data;
+    return this._persistRefreshedToken(data);
   },
 
   async changeEmail(password, newEmail) {
@@ -390,7 +400,7 @@ const API = {
       body: JSON.stringify({ password, newEmail })
     });
     if (data.error) throw new Error(data.error);
-    return data;
+    return this._persistRefreshedToken(data);
   },
 
   // ============================================================

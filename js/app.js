@@ -843,12 +843,10 @@ async function renderSettingsPage(tab = 'profile') {
           await API.changePassword(oldPassword, newPassword);
           document.getElementById('changeOldPassword').value = '';
           document.getElementById('changeNewPassword').value = '';
-          statusEl.textContent = getIcon('success') + ' 密码修改成功，正在返回登录页…';
+          statusEl.textContent = getIcon('success') + ' 密码修改成功，正在返回首页…';
           statusEl.style.color = '#22c55e';
-          localStorage.removeItem('token');
-          currentUser = null;
-          renderNav();
-          setTimeout(() => switchPage('login'), 800);
+          // 服务端已补发新令牌（见 API.changePassword），本次登录保持有效。
+          setTimeout(() => switchPage('feed'), 800);
         } catch (err) {
           statusEl.textContent = getIcon('error') + ' ' + err.message;
           statusEl.style.color = '#ef4444';
@@ -871,12 +869,10 @@ async function renderSettingsPage(tab = 'profile') {
           await API.changeEmail(password, newEmail);
           document.getElementById('changeEmailPassword').value = '';
           document.getElementById('changeNewEmail').value = '';
-          statusEl.textContent = getIcon('success') + ' 邮箱修改成功，正在返回登录页…';
+          statusEl.textContent = getIcon('success') + ' 邮箱修改成功，正在返回首页…';
           statusEl.style.color = '#22c55e';
-          localStorage.removeItem('token');
-          currentUser = null;
-          renderNav();
-          setTimeout(() => switchPage('login'), 800);
+          // 同上：令牌由服务端补发，保持登录状态。
+          setTimeout(() => switchPage('feed'), 800);
         } catch (err) {
           statusEl.textContent = getIcon('error') + ' ' + err.message;
           statusEl.style.color = '#ef4444';
