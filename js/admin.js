@@ -435,14 +435,14 @@ function renderAdminSettings() {
     if (!name) { alert('请输入论坛名称'); return; }
     try {
       await API.updateSettings(name);
-      document.getElementById('settingsResult').textContent = `${getIcon('success')} 保存成功！`;
+      document.getElementById('settingsResult').innerHTML = `${getIcon('success')} 保存成功！`;
       document.getElementById('settingsResult').style.color = '#22c55e';
       document.getElementById('forumName').textContent = name;
       document.title = name;
       const titleEl = document.getElementById('pageTitle');
       if (titleEl) titleEl.textContent = name;
     } catch (err) {
-      document.getElementById('settingsResult').textContent = `${getIcon('error')} 保存失败`;
+      document.getElementById('settingsResult').innerHTML = `${getIcon('error')} 保存失败`;
       document.getElementById('settingsResult').style.color = '#ef4444';
     }
   });

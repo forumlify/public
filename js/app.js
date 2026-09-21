@@ -843,12 +843,13 @@ async function renderSettingsPage(tab = 'profile') {
           await API.changePassword(oldPassword, newPassword);
           document.getElementById('changeOldPassword').value = '';
           document.getElementById('changeNewPassword').value = '';
-          statusEl.textContent = getIcon('success') + ' 密码修改成功，正在返回首页…';
+          // getIcon 返回 SVG 标记，必须用 innerHTML 渲染，否则会把标签当纯文本打印。
+          statusEl.innerHTML = getIcon('success') + ' 密码修改成功，正在返回首页…';
           statusEl.style.color = '#22c55e';
           // 服务端已补发新令牌（见 API.changePassword），本次登录保持有效。
           setTimeout(() => switchPage('feed'), 800);
         } catch (err) {
-          statusEl.textContent = getIcon('error') + ' ' + err.message;
+          statusEl.innerHTML = getIcon('error') + ' ' + escapeHTML(err.message);
           statusEl.style.color = '#ef4444';
         }
       });
@@ -869,12 +870,12 @@ async function renderSettingsPage(tab = 'profile') {
           await API.changeEmail(password, newEmail);
           document.getElementById('changeEmailPassword').value = '';
           document.getElementById('changeNewEmail').value = '';
-          statusEl.textContent = getIcon('success') + ' 邮箱修改成功，正在返回首页…';
+          statusEl.innerHTML = getIcon('success') + ' 邮箱修改成功，正在返回首页…';
           statusEl.style.color = '#22c55e';
           // 同上：令牌由服务端补发，保持登录状态。
           setTimeout(() => switchPage('feed'), 800);
         } catch (err) {
-          statusEl.textContent = getIcon('error') + ' ' + err.message;
+          statusEl.innerHTML = getIcon('error') + ' ' + escapeHTML(err.message);
           statusEl.style.color = '#ef4444';
         }
       });
@@ -1042,7 +1043,7 @@ function showRecoveryCodesModal(codes) {
   document.getElementById('copyRecoveryCodesBtn').addEventListener('click', function() {
     const text = codes.join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      document.getElementById('copyStatus').textContent = getIcon('success') + ' 已复制到剪贴板';
+      document.getElementById('copyStatus').innerHTML = getIcon('success') + ' 已复制到剪贴板';
     }).catch(() => {
       const textarea = document.createElement('textarea');
       textarea.value = text;
@@ -1050,7 +1051,7 @@ function showRecoveryCodesModal(codes) {
       textarea.select();
       document.execCommand('copy');
       textarea.remove();
-      document.getElementById('copyStatus').textContent = getIcon('success') + ' 已复制到剪贴板';
+      document.getElementById('copyStatus').innerHTML = getIcon('success') + ' 已复制到剪贴板';
     });
   });
 
@@ -1239,7 +1240,7 @@ async function init() {
 
     try {
       await API.resetPassword(email, code, newPassword);
-      statusEl.textContent = getIcon('success') + ' 重置成功！请登录';
+      statusEl.innerHTML = getIcon('success') + ' 重置成功！请登录';
       statusEl.style.color = '#22c55e';
       setTimeout(() => {
         document.getElementById('forgotPasswordModal').classList.remove('active');
@@ -1248,7 +1249,7 @@ async function init() {
         document.getElementById('resetNewPassword').value = '';
       }, 1500);
     } catch (err) {
-      statusEl.textContent = getIcon('error') + ' ' + err.message;
+      statusEl.innerHTML = getIcon('error') + ' ' + escapeHTML(err.message);
       statusEl.style.color = '#ef4444';
     }
   });
