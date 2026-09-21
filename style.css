@@ -2138,12 +2138,6 @@ a.btn-secondary {
    论坛设置页面 —— 对齐修复
    ============================================================ */
 
-/* CSS 上传区域居中 */
-#adminContent > div:last-child {
-  max-width: 500px !important;
-  margin: 0 auto !important;
-}
-
 /* 论坛名称输入框保持居中（已经是了） */
 #settingsForumName {
   max-width: 400px !important;
@@ -2164,11 +2158,13 @@ a.btn-secondary {
   text-align: center !important;
 }
 
-/* CSS 上传区域居中（如果还没加） */
-#adminContent > div:last-child {
-  max-width: 500px !important;
-  margin: 0 auto !important;
-}
+/* 注：此处原有两条 `#adminContent > div:last-child { max-width:500px }`
+   规则，本意是给「自定义 CSS」页面的上传区限宽居中。但 :last-child
+   会命中任何以单个 div 作为最外层容器的面板——用户列表正是这种结构，
+   因而被压成 500px 居中，与占满宽度的日志列表相差 426px。
+
+   该页面的上传区本身已带行内 `max-width:500px; margin:0 auto`，
+   这两条规则纯属多余且有害，已删除。 */
 
 /* 论坛名称输入框居中 */
 #settingsForumName {
