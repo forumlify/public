@@ -38,7 +38,7 @@ Forumlify 提供了两个不同架构的分支版本，以满足不同部署环�
 
 ```
 git clone https://github.com/forumlify/public.git
-cd forumlify
+cd public
 
 cp .env.example .env
 # 编辑 .env，为 POSTGRES_PASSWORD 和 JWT_SECRET 设置强随机值
@@ -48,6 +48,10 @@ docker compose up --build -d
 
 旧版 Compose 也可以使用 `docker-compose up -d`。请妥善备份 `.env`；更换
 `JWT_SECRET` 会使现有登录令牌失效。
+
+> `git clone` 生成的目录名是 `public`（取自仓库名），不是 `forumlify`。
+> 若想使用其他目录名，可在 clone 时指定，例如
+> `git clone https://github.com/forumlify/public.git forumlify`。
 
 应用默认运行在 `http://localhost:3000`。
 
@@ -105,13 +109,32 @@ npm install
 
 2. **准备数据库**
 
+创建数据库用户与空库即可，表结构交给迁移脚本处理：
+
 ```bash
-psql -U postgres -c "CREATE USER forumlify WITH PASSWORD '123456';"
+psql -U postgres -c "CREATE USER forumlify WITH PASSWORD '请替换为强密码';"
 psql -U postgres -c "CREATE DATABASE forumlify OWNER forumlify;"
-psql -U forumlify -d forumlify -f schema.sql
 ```
 
+> `schema.sql` 仅作为表结构的参考快照保留，**不要**再用它手工建表。
+> 请统一使用第 4 步的 `npm run migrate`，它会按顺序执行 `migrations/`
+> 下的文件并记录版本。手工建表后再跑迁移会导致版本记录与实际结构
+> 不一致，后续升级容易出错。
+
 3. **配置环境变量**
+
+复制示例文件并按需修改：
+
+```bash
+cp .env.example .env
+```
+
+`migrations/` 与 `server.js` 直接读取进程环境变量，`.env` 不会自动加载。
+使用 `npm start` 手动启动时，请先导出这些变量：
+
+```bash
+set -a && . ./.env && set +a
+```
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
@@ -121,7 +144,7 @@ psql -U forumlify -d forumlify -f schema.sql
 | `ALLOWED_ORIGINS` | 空 | 允许跨域访问的来源，多个值用逗号分隔；为空时仅支持同源访问 |
 | `TRUST_PROXY` | `false` | 位于可信反向代理后时设为 `true`，用于正确识别限流 IP |
 | `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / `PGDATABASE` | PostgreSQL 客户端默认值 | 可替代 `DATABASE_URL`，Compose 使用这些变量避免密码 URL 编码问题 |
-| `ADMIN_BOOTSTRAP_TOKEN` | 空 | 首次部署时设置强随机值；注册页填写相同值可创建唯一初始管理员，初始化后应删除该变量 |
+| `ADMIN_BOOTSTRAP_TOKEN` | 空 | 首次部署时设置强随机值；注册时填写相同值可创建唯一初始管理员，初始化后应删除该变量 |
 
 
 4. **执行迁移并启动**
@@ -132,6 +155,15 @@ npm start
 ```
 
 应用运行在 `http://localhost:3000`，API 在 `http://localhost:3000/api`。
+
+#### 创建第一个管理员
+
+站点默认没有任何管理员。首次部署时在 `.env` 中设置一个强随机
+`ADMIN_BOOTSTRAP_TOKEN`，然后在注册页面的「管理员初始化令牌」一栏填入
+相同的值完成注册，该账号即成为管理员。
+
+管理员只能这样创建：普通注册一律是普通用户，且系统存在管理员后，
+引导令牌不再生效。初始化完成后请从 `.env` 中删除该变量并重启服务。
 
 #### 前端配置
 
@@ -154,24 +186,52 @@ mkdir -p uploads && chmod 755 uploads
 ## 📁 项目结构
 
 ```
-forumlify/
+public/
 ├── index.html          # 前端页面
 ├── style.css           # 全局样式
-├── Dockerfile          # Docker 镜像构建文件
-├── package-lock.json   # 依赖锁定文件
+├── config.js           # 前端配置（同时也是服务端配置入口）
 ├── server.js           # 后端服务（Express）
-├── js/                 # 前端 JS 模块
-│   ├── app.js
-│   ├── admin.js
-│   ├── api.js
-│   ├── auth.js
-│   ├── feed.js
-│   ├── post.js
-│   └── user.js
-├── schema.sql          # 数据库表结构
-├── config.js           # 配置文件
-└── docker-compose.yml  # Docker 编排
+├── Dockerfile          # Docker 镜像构建文件
+├── docker-compose.yml  # Docker 编排
+├── package-lock.json   # 依赖锁定文件
+├── migrations/         # 数据库迁移（按文件名顺序执行，请勿手工修改已应用的版本）
+│   ├── 001_initial.sql
+│   └── 002_restore_auth_and_audit_columns.sql
+├── schema.sql          # 表结构参考快照（仅供阅读，请勿用于建表）
+├── scripts/
+│   ├── migrate.js          # 迁移执行器
+│   ├── docker-entrypoint.sh
+│   └── healthcheck.js
+├── test/               # 测试（node --test）
+└── js/                 # 前端 JS 模块
+    ├── app.js
+    ├── admin.js
+    ├── api.js
+    ├── auth.js
+    ├── feed.js
+    ├── post.js
+    └── user.js
 ```
+
+## ❓ 常见问题
+
+**升级代码后，登录之后的接口全部返回 500？**
+
+说明数据库缺少 `users.token_version` 或 `event_logs` 的审计字段。执行
+`npm run migrate` 应用 `migrations/` 中的修复迁移即可，无需重建数据库。
+若该库曾经手工执行过 `schema.sql`，迁移记录可能与实际结构不一致，可先
+检查 `SELECT * FROM schema_migrations;`。
+
+**忘记了管理员密码？**
+
+使用注册后在设置页生成的恢复码，在登录页的找回密码入口重置。恢复码
+建议在生成后立即离线保存。
+
+**修改密码或邮箱后被登出？**
+
+这两个操作会递增 `users.token_version` 使所有已签发的令牌失效，属于预期
+行为；服务端会随响应补发一个新令牌，前端会自动保存并保持在登录状态。
+若仍被登出，请强制刷新页面（Ctrl+F5）以载入最新的前端脚本。
 
 ## 📝 License
 
