@@ -14,6 +14,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const mailer = require('./lib/mailer');
 
 const app = express();
 
@@ -91,8 +92,19 @@ const authLimiter = rateLimit({
   handler: (req, res) => res.status(429).json({ error: '尝试次数过多，请稍后重试' }),
 });
 
+// 发送邮件的接口单独限流：这类接口会真实发出邮件，若被滥用既会
+// 骚扰收件人，也可能导致发信账号被服务商封禁。
+const mailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ error: '请求过于频繁，请稍后再试' }),
+});
+
 app.use('/api', apiLimiter);
 app.use(['/api/auth/login', '/api/auth/register', '/api/auth/reset-password'], authLimiter);
+app.use(['/api/auth/send-code', '/api/auth/forgot-password'], mailLimiter);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
@@ -322,6 +334,13 @@ app.get('/api/settings', async (req, res) => {
     }
     settings.bootstrap_required = bootstrapConfigured && !adminExists;
 
+    // 告知前端注册时是否需要邮箱验证码，决定是否显示验证码输入框。
+    // 同时暴露 SMTP 是否可用，避免在未配置邮件时引导用户去点「获取验证码」。
+    const smtpConfig = await mailer.loadSmtpConfig(pool);
+    const smtpReady = mailer.isConfigComplete(smtpConfig);
+    settings.email_verify_required = settings.email_verify_required === 'true' && smtpReady;
+    settings.smtp_ready = smtpReady;
+
     res.json(settings);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -343,6 +362,183 @@ app.put('/api/settings', auth, admin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: '更新失败，请稍后重试' });
+  }
+});
+
+// ============================================================
+//  SMTP 配置（管理员）
+// ============================================================
+
+// 读取 SMTP 配置。密码永不回显，只返回是否已设置。
+app.get('/api/admin/smtp', auth, admin, async (req, res) => {
+  try {
+    const config = await mailer.loadSmtpConfig(pool);
+    res.json({
+      enabled: config.enabled,
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      user: config.user,
+      from_name: config.fromName,
+      from_email: config.fromEmail,
+      // 只告诉前端「有没有设置过」，不返回明文
+      password_set: Boolean(config.password),
+      configured: mailer.isConfigComplete(config),
+    });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 保存 SMTP 配置
+app.put('/api/admin/smtp', auth, admin, async (req, res) => {
+  const { enabled, host, port, secure, user, password, from_name, from_email } = req.body;
+
+  if (typeof enabled !== 'boolean' || typeof secure !== 'boolean') {
+    return res.status(400).json({ error: '启用状态与加密方式必须为布尔值' });
+  }
+
+  const portNumber = Number(port);
+  if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
+    return res.status(400).json({ error: '端口应为 1 到 65535 之间的整数' });
+  }
+
+  // 允许留空（表示不启用），但填写时必须合法
+  const hostValue = typeof host === 'string' ? host.trim() : '';
+  if (hostValue.length > 255) {
+    return res.status(400).json({ error: 'SMTP 主机地址过长' });
+  }
+  const userValue = typeof user === 'string' ? user.trim() : '';
+  if (userValue.length > 255) {
+    return res.status(400).json({ error: 'SMTP 用户名过长' });
+  }
+  if (typeof from_name === 'string' && from_name.length > 100) {
+    return res.status(400).json({ error: '发件人名称过长' });
+  }
+
+  const fromEmailValue = typeof from_email === 'string' ? from_email.trim() : '';
+  if (fromEmailValue && !normalizeEmail(fromEmailValue)) {
+    return res.status(400).json({ error: '发件人邮箱格式无效' });
+  }
+
+  // 启用时必须把关键字段填全，否则直接存进去会让发信静默失败
+  if (enabled) {
+    if (!hostValue) return res.status(400).json({ error: '启用 SMTP 时需填写服务器地址' });
+    if (!fromEmailValue) return res.status(400).json({ error: '启用 SMTP 时需填写发件人邮箱' });
+  }
+
+  try {
+    const entries = [
+      ['smtp_enabled', String(enabled)],
+      ['smtp_host', hostValue],
+      ['smtp_port', String(portNumber)],
+      ['smtp_secure', String(secure)],
+      ['smtp_user', userValue],
+      ['smtp_from_name', typeof from_name === 'string' ? from_name.trim() : ''],
+      ['smtp_from_email', fromEmailValue],
+    ];
+
+    // 密码留空表示「保持原值」，避免管理员只改端口却把密码清掉。
+    // 传空字符串则显式清除。
+    if (typeof password === 'string' && password.length > 0) {
+      if (password.length > 255) {
+        return res.status(400).json({ error: 'SMTP 密码过长' });
+      }
+      entries.push(['smtp_password', password]);
+    }
+
+    for (const [key, value] of entries) {
+      await pool.query(
+        `INSERT INTO settings (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, value]
+      );
+    }
+
+    // 配置变了，让缓存的连接失效
+    mailer.invalidateTransport();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '保存失败，请稍后重试' });
+  }
+});
+
+// 发送测试邮件，验证配置是否可用。可指定收件人，默认发给当前管理员。
+app.post('/api/admin/smtp/test', auth, admin, async (req, res) => {
+  try {
+    const config = await mailer.loadSmtpConfig(pool);
+    if (!mailer.isConfigComplete(config)) {
+      return res.status(400).json({ error: 'SMTP 尚未配置完成，请先填写并启用' });
+    }
+
+    const requested = req.body && req.body.to;
+    const to = requested ? normalizeEmail(requested) : null;
+    if (requested && !to) {
+      return res.status(400).json({ error: '收件人邮箱格式无效' });
+    }
+
+    // 未指定则发给自己，省去管理员手填
+    let target = to;
+    if (!target) {
+      const me = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+      target = me.rows[0] && me.rows[0].email;
+      if (!target) return res.status(400).json({ error: '请指定收件人邮箱' });
+    }
+
+    await mailer.sendMail(config, {
+      to: target,
+      subject: 'Forumlify SMTP 测试邮件',
+      text: `这是一封来自 Forumlify 的测试邮件。\n\n如果你收到它，说明 SMTP 配置正确。\n\n发信时间：${new Date().toISOString()}`,
+      html: `<p>这是一封来自 <strong>Forumlify</strong> 的测试邮件。</p>
+             <p>如果你收到它，说明 SMTP 配置正确。</p>
+             <p style="color:#888;font-size:13px;">发信时间：${new Date().toISOString()}</p>`,
+    });
+
+    res.json({ success: true, to: target });
+  } catch (err) {
+    // 把底层 SMTP 异常转成可读提示，便于管理员自行排查
+    res.status(400).json({ error: mailer.describeSmtpError(err) });
+  }
+});
+
+// 清除已保存的 SMTP 密码
+app.delete('/api/admin/smtp/password', auth, admin, async (req, res) => {
+  try {
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('smtp_password', '')
+       ON CONFLICT (key) DO UPDATE SET value = '', updated_at = NOW()`
+    );
+    mailer.invalidateTransport();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '清除失败，请稍后重试' });
+  }
+});
+
+// 开关注册邮箱验证。仅在 SMTP 可用时才允许开启，避免开启后
+// 谁都注册不了。
+app.put('/api/admin/email-verify', auth, admin, async (req, res) => {
+  const { required } = req.body;
+  if (typeof required !== 'boolean') {
+    return res.status(400).json({ error: '参数无效' });
+  }
+
+  try {
+    if (required) {
+      const config = await mailer.loadSmtpConfig(pool);
+      if (!mailer.isConfigComplete(config)) {
+        return res.status(400).json({ error: '请先完成 SMTP 配置并发送测试邮件确认可用' });
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO settings (key, value) VALUES ('email_verify_required', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [String(required)]
+    );
+    res.json({ success: true, email_verify_required: required });
+  } catch (err) {
+    res.status(500).json({ error: '保存失败，请稍后重试' });
   }
 });
 
@@ -369,9 +565,171 @@ function issueToken(user) {
   );
 }
 
+// ============================================================
+//  邮箱验证码
+// ============================================================
+// 注册需要邮箱验证时，先发一个 6 位数字码；校验通过后才允许建号。
+// 验证码只存 sha256 摘要，并限制尝试次数与有效期。
+
+const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;   // 10 分钟有效
+const EMAIL_CODE_MAX_ATTEMPTS = 5;          // 超过即作废
+
+// 生成 6 位数字验证码，使用 crypto 随机源
+function generateEmailCode() {
+  // randomInt 上界不含，故取 1000000 得到 000000-999999
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
+function hashEmailCode(code) {
+  return crypto.createHash('sha256').update(String(code)).digest('hex');
+}
+
+// 论坛设置里是否需要邮箱验证。默认关闭，升级后行为不变。
+async function isEmailVerifyRequired() {
+  const r = await pool.query("SELECT value FROM settings WHERE key = 'email_verify_required'");
+  return r.rows[0]?.value === 'true';
+}
+
+// 写入一条验证码记录（同邮箱同用途只保留一条有效记录）
+async function createEmailVerification(email, purpose) {
+  const code = generateEmailCode();
+  await pool.query(
+    `INSERT INTO email_verifications (email, code_hash, purpose, expires_at, attempts, consumed_at)
+     VALUES ($1, $2, $3, $4, 0, NULL)
+     ON CONFLICT (LOWER(email), purpose) WHERE consumed_at IS NULL
+     DO UPDATE SET code_hash = EXCLUDED.code_hash,
+                   expires_at = EXCLUDED.expires_at,
+                   attempts = 0,
+                   created_at = now()`,
+    [email, hashEmailCode(code), purpose, new Date(Date.now() + EMAIL_CODE_TTL_MS)]
+  );
+  return code;
+}
+
+// 校验验证码。成功时消费掉该记录并返回 true。
+// 失败返回原因字符串，便于接口给出更具体的提示。
+async function consumeEmailVerification(email, purpose, code) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const r = await client.query(
+      `SELECT id, code_hash, attempts, expires_at
+       FROM email_verifications
+       WHERE LOWER(email) = LOWER($1) AND purpose = $2 AND consumed_at IS NULL
+       ORDER BY created_at DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [email, purpose]
+    );
+
+    if (r.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return 'missing';
+    }
+
+    const row = r.rows[0];
+
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      await client.query('ROLLBACK');
+      return 'expired';
+    }
+    if (row.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+      await client.query('ROLLBACK');
+      return 'too_many';
+    }
+
+    // 定时安全比较，避免通过响应时间推断验证码
+    const provided = Buffer.from(hashEmailCode(code));
+    const expected = Buffer.from(row.code_hash);
+    const matched = provided.length === expected.length &&
+      crypto.timingSafeEqual(provided, expected);
+
+    if (!matched) {
+      await client.query(
+        'UPDATE email_verifications SET attempts = attempts + 1 WHERE id = $1',
+        [row.id]
+      );
+      await client.query('COMMIT');
+      return 'mismatch';
+    }
+
+    await client.query(
+      'UPDATE email_verifications SET consumed_at = now() WHERE id = $1',
+      [row.id]
+    );
+    await client.query('COMMIT');
+    return null;   // null 表示通过
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// 把 consumeEmailVerification 的失败原因转成用户可读文案
+const EMAIL_CODE_ERRORS = {
+  missing: '请先获取验证码',
+  expired: '验证码已过期，请重新获取',
+  too_many: '尝试次数过多，请重新获取验证码',
+  mismatch: '验证码错误',
+};
+
+// 校验邮件配置是否可用于发信，返回配置对象或抛出带 code 的错误
+async function requireMailConfig() {
+  const config = await mailer.loadSmtpConfig(pool);
+  if (!mailer.isConfigComplete(config)) {
+    const error = new Error('站点尚未配置邮件服务，请联系管理员');
+    error.code = 'SMTP_NOT_CONFIGURED';
+    throw error;
+  }
+  return config;
+}
+
+// 发送邮箱验证码（注册用）。独立的限流在注册路由处配置。
+app.post('/api/auth/send-code', async (req, res) => {
+  const { email } = req.body;
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    return res.status(400).json({ error: '请输入有效邮箱' });
+  }
+
+  try {
+    if (!(await isEmailVerifyRequired())) {
+      return res.status(400).json({ error: '本站未开启邮箱验证' });
+    }
+
+    // 已注册过的邮箱直接拦下，避免泄露之外还白发一封
+    const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [normalized]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: '该邮箱已被注册' });
+    }
+
+    const config = await requireMailConfig();
+    const code = await createEmailVerification(normalized, 'register');
+
+    await mailer.sendMail(config, {
+      to: normalized,
+      subject: '注册验证码',
+      text: `你的注册验证码是：${code}\n\n有效期 10 分钟，请勿转发给他人。\n如果这不是你本人的操作，请忽略本邮件。`,
+      html: `<p>你的注册验证码是：</p>
+             <p style="font-size:26px;font-weight:700;letter-spacing:4px;margin:12px 0;">${code}</p>
+             <p style="color:#888;font-size:13px;">有效期 10 分钟，请勿转发给他人。<br>如果这不是你本人的操作，请忽略本邮件。</p>`,
+    });
+
+    res.json({ success: true, message: '验证码已发送，请查收邮件' });
+  } catch (err) {
+    if (err.code === 'SMTP_NOT_CONFIGURED') {
+      return res.status(503).json({ error: err.message });
+    }
+    console.error('发送注册验证码失败:', err);
+    res.status(400).json({ error: mailer.describeSmtpError(err) });
+  }
+});
+
 // 注册；管理员只能使用部署时配置的一次性引导令牌创建
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password, username, bootstrap_token } = req.body;
+  const { email, password, username, bootstrap_token, email_code } = req.body;
 
   if (!email || !password || !username) {
     return res.status(400).json({ error: '请填写完整信息' });
@@ -384,6 +742,25 @@ app.post('/api/auth/register', async (req, res) => {
   }
   if (!isText(password, { min: 6, max: 128 })) {
     return res.status(400).json({ error: '密码长度应为6到128个字符' });
+  }
+
+  // 邮箱验证码校验放在所有格式校验之后，避免用户因格式错误白白消耗
+  // 一次验证码（校验失败会计入尝试次数）。
+  let emailVerified = false;
+  try {
+    if (await isEmailVerifyRequired()) {
+      if (!isText(email_code, { min: 4, max: 10 })) {
+        return res.status(400).json({ error: '请输入邮箱验证码' });
+      }
+      const failure = await consumeEmailVerification(normalizedEmail, 'register', email_code.trim());
+      if (failure) {
+        return res.status(400).json({ error: EMAIL_CODE_ERRORS[failure] || '验证码校验失败' });
+      }
+      emailVerified = true;
+    }
+  } catch (err) {
+    console.error('校验邮箱验证码失败:', err);
+    return res.status(500).json({ error: '服务器错误' });
   }
 
   const hash = await bcrypt.hash(password, 10);
@@ -409,10 +786,10 @@ app.post('/api/auth/register', async (req, res) => {
 
     const role = validBootstrap && !hasAdmin ? 'admin' : 'user';
     const r = await client.query(
-      `INSERT INTO users (email, password_hash, username, avatar_url, role, signature)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (email, password_hash, username, avatar_url, role, signature, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, username, avatar_url, role, signature, created_at`,
-      [normalizedEmail, hash, username.trim(), avatar, role, '']
+      [normalizedEmail, hash, username.trim(), avatar, role, '', emailVerified]
     );
     await client.query('COMMIT');
 
@@ -1704,6 +2081,79 @@ app.get('/api/auth/recovery-codes/count', auth, async (req, res) => {
 });
 
 // 重置密码（使用恢复码）
+// 通过邮箱发送密码重置码。与恢复码机制并行，管理员可按需启用。
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    return res.status(400).json({ error: '请输入有效邮箱' });
+  }
+
+  try {
+    const user = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [normalized]);
+
+    // 无论邮箱是否存在都返回同样的成功响应，避免被用来枚举注册用户。
+    if (user.rows.length === 0) {
+      return res.json({ success: true, message: '如果该邮箱已注册，重置码已发送' });
+    }
+
+    const config = await requireMailConfig();
+    const code = await createEmailVerification(normalized, 'reset');
+
+    await mailer.sendMail(config, {
+      to: normalized,
+      subject: '密码重置验证码',
+      text: `你的密码重置验证码是：${code}\n\n有效期 10 分钟。如果这不是你本人的操作，请忽略本邮件，你的密码不会发生变化。`,
+      html: `<p>你的密码重置验证码是：</p>
+             <p style="font-size:26px;font-weight:700;letter-spacing:4px;margin:12px 0;">${code}</p>
+             <p style="color:#888;font-size:13px;">有效期 10 分钟。如果这不是你本人的操作，请忽略本邮件，你的密码不会发生变化。</p>`,
+    });
+
+    res.json({ success: true, message: '如果该邮箱已注册，重置码已发送' });
+  } catch (err) {
+    if (err.code === 'SMTP_NOT_CONFIGURED') {
+      return res.status(503).json({ error: err.message });
+    }
+    console.error('发送密码重置码失败:', err);
+    res.status(400).json({ error: mailer.describeSmtpError(err) });
+  }
+});
+
+// 使用邮箱验证码重置密码
+app.post('/api/auth/reset-password-by-email', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  const normalized = normalizeEmail(email);
+
+  if (!normalized || !isText(code, { min: 4, max: 10 }) || !isText(newPassword, { min: 6, max: 128 })) {
+    return res.status(400).json({ error: '请填写完整信息' });
+  }
+
+  try {
+    const failure = await consumeEmailVerification(normalized, 'reset', code.trim());
+    if (failure) {
+      return res.status(400).json({ error: EMAIL_CODE_ERRORS[failure] || '验证码校验失败' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    // 递增 token_version 让所有已签发的登录令牌立即失效
+    const updated = await pool.query(
+      `UPDATE users SET password_hash = $1, token_version = token_version + 1
+       WHERE LOWER(email) = LOWER($2)
+       RETURNING id`,
+      [hash, normalized]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(400).json({ error: '账号不存在' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('通过邮箱重置密码失败:', err);
+    res.status(500).json({ error: '重置失败，请稍后重试' });
+  }
+});
+
 app.post('/api/auth/reset-password', async (req, res) => {
   const { email, recoveryCode, newPassword } = req.body;
 

@@ -2181,29 +2181,32 @@ a.btn-secondary {
    论坛设置 —— 名称输入框 + 保存按钮同行
    ============================================================ */
 
-/* 论坛名称区域的容器（假设是 div 包着 input + button） */
-#adminContent > div:first-of-type {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-  max-width: 500px !important;
-  margin: 0 auto !important;
-  flex-wrap: wrap !important;
+/* 原先这里用 `#adminContent > div:first-of-type` 定位本面板，
+   依赖「第一个 div 就是论坛名称区域」这一脆弱假设。任何新增的
+   后台面板只要把 div 放在最前就会被打成 flex 行布局（邮件设置面板
+   就踩到了这个坑）。改为显式的类名，语义明确且互不干扰。 */
+.forum-name-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 500px;
+  margin: 0 auto;
+  flex-wrap: wrap;
 }
 
 /* 输入框 flex: 1 占满剩余空间 */
 #settingsForumName {
-  flex: 1 !important;
-  min-width: 200px !important;
-  margin: 0 !important;
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
 }
 
 /* 保存按钮不需要全宽 */
 #settingsForumSave {
-  width: auto !important;
-  flex-shrink: 0 !important;
-  margin: 0 !important;
+  width: auto;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 /* 状态提示文字紧跟按钮 */
@@ -2878,6 +2881,90 @@ a.btn-secondary {
 }
 
 /* ============================================================
+   📧 邮件设置面板
+   ------------------------------------------------------------
+   管理后台的输入框原本没有统一的宽度与间距规则，靠行内样式零散
+   指定。这里用一个专用容器类统一约束，避免与 label 挤在同一行。
+   ============================================================ */
+
+.smtp-form {
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+  /* 管理后台的容器默认是 flex 行布局，会把 label 与 input 横向排开。
+     这里显式改回纵向块级流，让每个控件独占一行。 */
+  display: block;
+}
+
+/* 表单内的文本控件独占一行 */
+.smtp-form input:not([type="checkbox"]),
+.smtp-form select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+}
+
+/* 复选框保持自然尺寸，与文字同一行 */
+.smtp-form input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  flex: none;
+}
+
+.smtp-form label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+/* 包裹复选框的 label 用 flex，使方框与文字对齐 */
+.smtp-form label.smtp-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
+.smtp-form .smtp-row {
+  display: flex;
+  gap: 12px;
+}
+
+.smtp-form .smtp-row > div {
+  flex: 1;
+}
+
+.smtp-form .smtp-hint {
+  font-size: 12px;
+  color: var(--glass-text-light);
+  margin: -8px 0 14px;
+}
+
+.smtp-form .smtp-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0 24px;
+}
+
+.smtp-form hr {
+  border: none;
+  border-top: 1px solid var(--glass-border);
+  margin: 0 0 20px;
+}
+
+/* 窄屏时端口与加密方式改为纵向排列 */
+@media (max-width: 480px) {
+  .smtp-form .smtp-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* ============================================================
    ❓ 确认对话框
    ------------------------------------------------------------
    替代浏览器原生 confirm()。结构由 js/app.js 的 showConfirm()
@@ -2998,10 +3085,18 @@ a.btn-secondary {
 }
 
 /* 覆盖所有文本输入控件。排除 checkbox/radio/file/range/color 等
-   非文本控件，它们用凹陷阴影会显得突兀。 */
+   非文本控件，它们用凹陷阴影会显得突兀。
+
+   注意：只加视觉相关的 !important，不要给 padding / width 加，
+   否则会压过各页面（如管理后台）已有的尺寸定制，导致输入框塌陷。
+   这里给出兜底的 padding，让没有单独定义内边距的输入框也有正常高度。 */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]),
 textarea,
 select {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--glass-text);
   background: var(--inset-bg) !important;
   border: 1px solid var(--inset-border) !important;
   box-shadow: var(--inset-shadow) !important;

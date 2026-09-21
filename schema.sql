@@ -287,3 +287,48 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_unique_pending
 -- ============================================================
 INSERT INTO settings (key, value) VALUES ('forum_name', 'Forumlify')
 ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================
+--  邮箱验证（对应 migrations/003_email_verification.sql）
+-- ============================================================
+
+-- 邮箱验证码：用于注册时的邮箱归属校验，以及通过邮箱找回密码
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL,
+  -- 验证码的 sha256 摘要，不存明文
+  code_hash VARCHAR(64) NOT NULL,
+  purpose VARCHAR(20) NOT NULL DEFAULT 'register',
+  -- 尝试次数，超过阈值即作废，防止暴力枚举 6 位数字
+  attempts INTEGER NOT NULL DEFAULT 0,
+  consumed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_lookup
+  ON email_verifications (LOWER(email), purpose, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_expires
+  ON email_verifications (expires_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_email_verifications_active
+  ON email_verifications (LOWER(email), purpose)
+  WHERE consumed_at IS NULL;
+
+-- 用户邮箱验证标记。存量用户默认为 true：他们是在开启邮箱验证之前
+-- 注册的，不应因为新功能而被标记为「未验证」。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true;
+
+-- SMTP 配置项（默认关闭，管理员在后台填写后生效）
+INSERT INTO settings (key, value) VALUES
+  ('smtp_enabled',    'false'),
+  ('smtp_host',       ''),
+  ('smtp_port',       '587'),
+  ('smtp_secure',     'false'),
+  ('smtp_user',       ''),
+  ('smtp_password',   ''),
+  ('smtp_from_name',  ''),
+  ('smtp_from_email', ''),
+  ('email_verify_required', 'false')
+ON CONFLICT (key) DO NOTHING;

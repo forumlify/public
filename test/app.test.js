@@ -70,6 +70,20 @@ test('bcryptjs hashes passwords without native install scripts', async () => {
 });
 
 test('security-sensitive dependencies are on patched release lines', () => {
-  assert.match(multerPackage.version, /^2\.2\./);
+  // multer 2.2.0 及更早版本存在多个 DoS 与上传限制绕过漏洞
+  // （GHSA-wc9g-mqfw-jrwm 等），2.3.0 起修复。
+  // 这里断言「不低于已修复的版本」，而不是锁死某个小版本，
+  // 否则后续的安全升级反而会让测试失败。
+  const [major, minor] = multerPackage.version.split('.').map(Number);
+  const multerPatched = major > 2 || (major === 2 && minor >= 3);
+  assert.ok(
+    multerPatched,
+    `multer ${multerPackage.version} 低于已修复漏洞的 2.3.0`
+  );
+
   assert.equal(projectPackage.dependencies['express-rate-limit'], '8.6.2');
+  assert.ok(
+    projectPackage.dependencies.nodemailer,
+    'nodemailer 是邮件功能的必需依赖'
+  );
 });

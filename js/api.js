@@ -37,10 +37,16 @@ const API = {
     return data;
   },
 
-  async register(email, password, username, bootstrapToken = '') {
+  async register(email, password, username, bootstrapToken = '', emailCode = '') {
     const data = await apiFetch('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, username, bootstrap_token: bootstrapToken || undefined })
+      body: JSON.stringify({
+        email,
+        password,
+        username,
+        bootstrap_token: bootstrapToken || undefined,
+        email_code: emailCode || undefined
+      })
     });
     if (data.error) throw new Error(data.error);
     return data;
@@ -439,6 +445,81 @@ const API = {
   async deleteCustomCSS() {
     const data = await apiFetch('/admin/custom-css', {
       method: 'DELETE'
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  // ============================================================
+  //  SMTP 配置（管理员）
+  // ============================================================
+
+  async getSmtpConfig() {
+    const data = await apiFetch('/admin/smtp');
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  // password 留空表示保持原有密码不变
+  async saveSmtpConfig(config) {
+    const data = await apiFetch('/admin/smtp', {
+      method: 'PUT',
+      body: JSON.stringify(config)
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async clearSmtpPassword() {
+    const data = await apiFetch('/admin/smtp/password', { method: 'DELETE' });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async sendTestMail(to) {
+    const data = await apiFetch('/admin/smtp/test', {
+      method: 'POST',
+      body: JSON.stringify(to ? { to } : {})
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async setEmailVerifyRequired(required) {
+    const data = await apiFetch('/admin/email-verify', {
+      method: 'PUT',
+      body: JSON.stringify({ required })
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  // ============================================================
+  //  邮箱验证码
+  // ============================================================
+
+  async sendRegisterCode(email) {
+    const data = await apiFetch('/auth/send-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async forgotPassword(email) {
+    const data = await apiFetch('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async resetPasswordByEmail(email, code, newPassword) {
+    const data = await apiFetch('/auth/reset-password-by-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword })
     });
     if (data.error) throw new Error(data.error);
     return data;
