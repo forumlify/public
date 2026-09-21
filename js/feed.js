@@ -143,7 +143,10 @@ function renderFeed() {
           </span>
         </div>
       `;
-      container.innerHTML += paginationHtml;
+      // 用 insertAdjacentHTML 追加而非 innerHTML +=：
+      // 后者会让浏览器重新解析整个容器，导致已渲染的帖子卡片被重建，
+      // 入场动画会重放一遍，视觉上像闪了一下。
+      container.insertAdjacentHTML('beforeend', paginationHtml);
 
       container.querySelectorAll('.page-btn:not([disabled])').forEach(btn => {
         btn.addEventListener('click', function() {

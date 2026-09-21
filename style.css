@@ -2566,3 +2566,249 @@ a.btn-secondary {
     display: none !important;
   }
 }
+
+/* ============================================================
+   ✨ 交互动效层
+   ------------------------------------------------------------
+   设计原则：克制、快速、服务于反馈而非炫技。
+   - 时长集中在 120–380ms，避免拖慢操作节奏
+   - 位移幅度控制在 2–8px，不干扰阅读位置
+   - 统一使用 --ease-out / --ease-spring 两条曲线
+   - 全部动效在 prefers-reduced-motion 下自动关闭（见文件末尾）
+   ============================================================ */
+
+:root {
+  /* 出场：先快后慢，适合元素进入视野 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* 回弹：轻微过冲，用于按钮与图标的即时反馈 */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 0.16s;
+  --dur-base: 0.26s;
+  --dur-slow: 0.38s;
+}
+
+/* ===== 1. 通用入场：卡片/列表项 ===== */
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 帖子卡片逐个浮入。用 backwards 填充，保证错峰延迟期间不闪现。 */
+.post-card {
+  animation: riseIn var(--dur-base) var(--ease-out) backwards;
+}
+
+/* 列表错峰：前 12 项依次延迟 35ms，之后不再累加，
+   避免长列表末尾等待过久。 */
+.post-card:nth-child(1) { animation-delay: 0ms; }
+.post-card:nth-child(2) { animation-delay: 35ms; }
+.post-card:nth-child(3) { animation-delay: 70ms; }
+.post-card:nth-child(4) { animation-delay: 105ms; }
+.post-card:nth-child(5) { animation-delay: 140ms; }
+.post-card:nth-child(6) { animation-delay: 175ms; }
+.post-card:nth-child(7) { animation-delay: 210ms; }
+.post-card:nth-child(8) { animation-delay: 245ms; }
+.post-card:nth-child(9) { animation-delay: 280ms; }
+.post-card:nth-child(10) { animation-delay: 315ms; }
+.post-card:nth-child(n+11) { animation-delay: 350ms; }
+
+.reply-item {
+  animation: riseIn var(--dur-base) var(--ease-out) backwards;
+}
+.reply-item:nth-child(2) { animation-delay: 30ms; }
+.reply-item:nth-child(3) { animation-delay: 60ms; }
+.reply-item:nth-child(4) { animation-delay: 90ms; }
+.reply-item:nth-child(5) { animation-delay: 120ms; }
+.reply-item:nth-child(n+6) { animation-delay: 150ms; }
+
+/* ===== 2. 帖子详情：整页淡入 + 内容轻微上浮 ===== */
+
+.post-detail-card {
+  animation: riseIn var(--dur-slow) var(--ease-out) backwards;
+}
+
+/* ===== 3. 按钮反馈 =====
+   已有 hover 位移，这里补充按下时的即时回弹，让点击有手感。
+   仅作用于 transform，不改变布局，避免列表抖动。 */
+
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-sm,
+.btn-danger {
+  transition: transform var(--dur-fast) var(--ease-spring),
+              background var(--transition),
+              box-shadow var(--transition),
+              color var(--transition),
+              border-color var(--transition);
+  will-change: transform;
+}
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-sm:active,
+.btn-danger:active {
+  transform: scale(0.96);
+  transition-duration: 0.08s;
+}
+
+/* 图标按钮（导航、关闭等）同样给出按下反馈 */
+.nav-icon-btn:active,
+.modal .close:active {
+  transform: scale(0.9);
+  transition: transform 0.08s ease;
+}
+
+/* ===== 4. 弹窗 =====
+   保留原有 modalFade，补充内容层的缩放上浮，让弹窗更有层次。 */
+
+.modal.active .modal-content {
+  animation: modalPop var(--dur-base) var(--ease-spring) backwards;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== 5. 下拉菜单 ===== */
+
+.dropdown-menu {
+  animation: dropdownFade var(--dur-fast) var(--ease-out) backwards;
+}
+
+/* ===== 6. 页面切换 =====
+   page-slide 已有 slideIn；为普通内容区补充淡入，避免切换时生硬。 */
+
+#app {
+  animation: fadeIn var(--dur-base) var(--ease-out) backwards;
+}
+
+/* ===== 7. 头像与图片 ===== */
+
+.post-avatar,
+.reply-avatar,
+.avatar {
+  transition: transform var(--dur-base) var(--ease-spring),
+              box-shadow var(--dur-base) ease;
+}
+
+.post-card:hover .post-avatar,
+.reply-item:hover .reply-avatar {
+  transform: scale(1.08);
+}
+
+/* 图片在查看器中的进入 */
+#imageViewer img {
+  animation: modalPop var(--dur-base) var(--ease-spring) backwards;
+}
+
+/* ===== 8. 加载骨架 =====
+   把纯文字「加载中...」的等待感降低：轻微呼吸，不做花哨占位图。 */
+
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.loading-hint,
+[data-loading="true"] {
+  animation: softPulse 1.4s ease-in-out infinite;
+}
+
+/* ===== 9. 通知徽标 ===== */
+
+@keyframes badgePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+#messageBadge:not([style*="display: none"]) {
+  animation: badgePop var(--dur-base) var(--ease-spring) backwards;
+}
+
+/* ===== 10. 焦点可见性 =====
+   键盘导航时给出清晰焦点环，与动画层一并处理。 */
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-ghost:focus-visible,
+.btn-sm:focus-visible,
+.nav-icon-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   无障碍：尊重系统的「减少动画」设置
+   ------------------------------------------------------------
+   用户在系统层面开启后，关闭所有位移/缩放/循环动画，仅保留
+   必要的状态切换（如弹窗显隐），避免前庭不适。
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* 循环动画彻底停止，而非加速循环 */
+  .loading-hint,
+  [data-loading="true"] {
+    animation: none !important;
+    opacity: 0.75;
+  }
+
+  /* 位移类效果直接取消，保留颜色等非运动反馈 */
+  .post-card,
+  .reply-item,
+  .post-detail-card,
+  .modal.active .modal-content,
+  .dropdown-menu,
+  #app,
+  #imageViewer img,
+  #messageBadge:not([style*="display: none"]) {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-ghost:active,
+  .btn-sm:active,
+  .btn-danger:active,
+  .nav-icon-btn:active,
+  .modal .close:active {
+    transform: none;
+  }
+
+  .post-card:hover .post-avatar,
+  .reply-item:hover .reply-avatar {
+    transform: none;
+  }
+}
