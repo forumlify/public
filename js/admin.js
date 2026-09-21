@@ -42,12 +42,17 @@ function renderAdminReports() {
     });
     container.innerHTML = sanitizeHTML(html);
     container.querySelectorAll('[data-action]').forEach(btn => {
-      btn.addEventListener('click', function() {
+      btn.addEventListener('click', async function() {
         const id = this.dataset.reportid;
         const action = this.dataset.action;
         const status = action === 'approve' ? 'approved' : 'rejected';
         const note = action === 'approve' ? '已删除违规帖子' : '举报不成立';
-        if (action === 'approve' && !confirm('确定要删除该帖子并标记举报为已处理吗？')) return;
+        if (action === 'approve') {
+          const ok = await showConfirm('确定要删除该帖子并标记举报为已处理吗？', {
+            title: '删除帖子', confirmText: '删除', danger: true,
+          });
+          if (!ok) return;
+        }
         API.updateReport(id, status, note).then(() => {
           renderAdminReports();
         }).catch(err => alert('操作失败：' + err.message));
@@ -201,11 +206,16 @@ function renderAdminUsers(page = 1, search = '') {
 
     // 绑定角色切换事件
     container.querySelectorAll('[data-role]').forEach(btn => {
-      btn.addEventListener('click', function() {
+      btn.addEventListener('click', async function() {
         const userId = this.dataset.userid;
         const role = this.dataset.role;
         const roleName = role === 'admin' ? '管理员' : '普通用户';
-        if (!confirm(`确定要将该用户设为「${roleName}」吗？`)) return;
+        const ok = await showConfirm(`确定要将该用户设为「${roleName}」吗？`, {
+          title: '修改用户角色',
+          confirmText: '确定',
+          danger: role === 'admin',
+        });
+        if (!ok) return;
         API.updateUserRole(userId, role).then(() => {
           renderAdminUsers(currentUsersPage, usersSearchKeyword);
         }).catch(err => alert('操作失败：' + err.message));
@@ -387,8 +397,11 @@ function renderAdminLinks() {
       });
       ul.innerHTML = sanitizeHTML(html);
       ul.querySelectorAll('[data-linkid]').forEach(btn => {
-        btn.addEventListener('click', function() {
-          if (!confirm('确定删除该链接吗？')) return;
+        btn.addEventListener('click', async function() {
+          const ok = await showConfirm('确定删除该链接吗？', {
+            title: '删除友链', confirmText: '删除', danger: true,
+          });
+          if (!ok) return;
           API.deleteLink(this.dataset.linkid).then(() => {
             loadLinks();
           }).catch(err => alert('删除失败：' + err.message));
@@ -558,7 +571,12 @@ function renderAdminCustomCSS() {
   });
 
   document.getElementById('customCssDeleteBtn').addEventListener('click', async function() {
-    if (!confirm('确定要删除自定义 CSS 吗？将恢复默认样式。')) return;
+    const ok = await showConfirm('确定要删除自定义 CSS 吗？将恢复默认样式。', {
+      title: '删除自定义 CSS',
+      confirmText: '删除',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await API.deleteCustomCSS();
       showToast('已删除自定义 CSS', 'success');
@@ -643,8 +661,11 @@ function loadCustomPageList() {
     });
 
     container.querySelectorAll('[data-action="delete"]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        if (!confirm('确定要删除这个页面吗？')) return;
+      btn.addEventListener('click', async function() {
+        const ok = await showConfirm('确定要删除这个页面吗？', {
+          title: '删除页面', confirmText: '删除', danger: true,
+        });
+        if (!ok) return;
         API.deleteCustomPage(this.dataset.id).then(() => {
           loadCustomPageList();
           loadCustomPagesNav();

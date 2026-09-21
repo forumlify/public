@@ -193,14 +193,16 @@ function renderFeed() {
       });
     });
     container.querySelectorAll('.action-delete').forEach(btn => {
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener('click', async function(e) {
         e.stopPropagation();
-        if (confirm('确定要删除这条帖子吗？')) {
-          API.deletePost(this.dataset.postid).then(() => {
-            renderFeed();
-            renderStats();
-          }).catch(err => alert('删除失败：' + err.message));
-        }
+        const ok = await showConfirm('确定要删除这条帖子吗？', {
+          title: '删除帖子', confirmText: '删除', danger: true,
+        });
+        if (!ok) return;
+        API.deletePost(this.dataset.postid).then(() => {
+          renderFeed();
+          renderStats();
+        }).catch(err => alert('删除失败：' + err.message));
       });
     });
   }).catch(err => {

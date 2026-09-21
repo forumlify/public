@@ -148,9 +148,14 @@ async function renderPostDetail(postId) {
     // 置顶按钮
     const pinBtn = document.getElementById('pinPostBtn');
     if (pinBtn) {
-      pinBtn.addEventListener('click', function() {
+      pinBtn.addEventListener('click', async function() {
         const postId = this.dataset.postid;
-        if (!confirm('确定要' + (this.textContent.includes('取消') ? '取消' : '') + '置顶吗？')) return;
+        const unpin = this.textContent.includes('取消');
+        const ok = await showConfirm('确定要' + (unpin ? '取消' : '') + '置顶吗？', {
+          title: unpin ? '取消置顶' : '置顶帖子',
+          confirmText: unpin ? '取消置顶' : '置顶',
+        });
+        if (!ok) return;
         API.togglePinPost(postId).then(() => {
           renderPostDetail(postId);
           renderFeed();
@@ -171,27 +176,31 @@ async function renderPostDetail(postId) {
 
     const deleteBtn = document.getElementById('detailDeleteBtn');
     if (deleteBtn) {
-      deleteBtn.addEventListener('click', function() {
-        if (confirm('确定要删除这条帖子吗？')) {
-          API.deletePost(postId).then(() => {
-            alert('删除成功');
-            switchPage('feed');
-            renderFeed();
-            renderStats();
-          }).catch(err => alert('删除失败：' + err.message));
-        }
+      deleteBtn.addEventListener('click', async function() {
+        const ok = await showConfirm('确定要删除这条帖子吗？', {
+          title: '删除帖子', confirmText: '删除', danger: true,
+        });
+        if (!ok) return;
+        API.deletePost(postId).then(() => {
+          alert('删除成功');
+          switchPage('feed');
+          renderFeed();
+          renderStats();
+        }).catch(err => alert('删除失败：' + err.message));
       });
     }
 
     document.querySelectorAll('.reply-delete-btn').forEach(btn => {
-      btn.addEventListener('click', function(e) {
+      btn.addEventListener('click', async function(e) {
         e.stopPropagation();
         const replyId = this.dataset.replyid;
-        if (confirm('确定要删除这条回复吗？')) {
-          API.deleteReply(replyId).then(() => {
-            renderPostDetail(postId);
-          }).catch(err => alert('删除失败：' + err.message));
-        }
+        const ok = await showConfirm('确定要删除这条回复吗？', {
+          title: '删除回复', confirmText: '删除', danger: true,
+        });
+        if (!ok) return;
+        API.deleteReply(replyId).then(() => {
+          renderPostDetail(postId);
+        }).catch(err => alert('删除失败：' + err.message));
       });
     });
 

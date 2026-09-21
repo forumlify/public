@@ -2876,3 +2876,87 @@ a.btn-secondary {
     transform: none;
   }
 }
+
+/* ============================================================
+   ❓ 确认对话框
+   ------------------------------------------------------------
+   替代浏览器原生 confirm()。结构由 js/app.js 的 showConfirm()
+   动态创建，这里只负责外观。
+   ============================================================ */
+
+.confirm-modal .modal-content {
+  max-width: 380px;
+  padding: 24px 28px;
+}
+
+.confirm-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--glass-text);
+  margin: 0 0 10px;
+}
+
+.confirm-message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--glass-text-secondary);
+  margin: 0 0 22px;
+  /* 长文案与连续英文自动换行，避免撑破弹窗 */
+  word-break: break-word;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-actions button {
+  padding: 8px 18px;
+  font-size: 14px;
+  min-width: 82px;
+}
+
+/* 取消按钮：中性描边，视觉上弱于主操作 */
+.confirm-modal .btn-secondary {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--glass-text-secondary);
+}
+
+.confirm-modal .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--glass-text);
+}
+
+[data-theme="dark"] .confirm-modal .btn-secondary {
+  border-color: var(--glass-border);
+  color: var(--glass-text-secondary);
+}
+
+[data-theme="dark"] .confirm-modal .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--glass-text);
+}
+
+/* 危险操作（删除等）用实心红，与普通确认区分开 */
+.confirm-modal .btn-danger-solid {
+  background: #ef4444;
+  border: 1px solid #ef4444;
+  color: #fff;
+}
+
+.confirm-modal .btn-danger-solid:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+/* 移动端按钮铺满一行，便于点按 */
+@media (max-width: 480px) {
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+  .confirm-actions button {
+    width: 100%;
+  }
+}

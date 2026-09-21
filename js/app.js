@@ -53,6 +53,93 @@ function closeWithAnimation(el, className) {
 const closeModal = el => closeWithAnimation(el, 'active');
 const closeDropdown = el => closeWithAnimation(el, 'show');
 
+// ============================================================
+//  确认对话框
+// ============================================================
+// 替代浏览器原生 confirm()：原生弹窗样式无法定制、会阻塞渲染线程，
+// 在移动端尤其突兀。这里返回 Promise<boolean>，配合 await 使用：
+//
+//   if (!await showConfirm('确定删除吗？')) return;
+//
+// 支持 Esc 取消、点击遮罩取消、危险操作红色按钮，并复用模态框的
+// 进出场动画。
+
+function showConfirm(message, options = {}) {
+  const {
+    title = '请确认',
+    confirmText = '确定',
+    cancelText = '取消',
+    danger = false,
+  } = options;
+
+  return new Promise(resolve => {
+    let settled = false;
+    const modal = document.createElement('div');
+    modal.className = 'modal confirm-modal';
+
+    // 用 textContent 而非模板字符串拼接，避免消息里的特殊字符被当作 HTML
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:380px;">
+        <h2 class="confirm-title"></h2>
+        <p class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button class="btn-secondary confirm-cancel" type="button"></button>
+          <button class="btn-primary confirm-ok" type="button"></button>
+        </div>
+      </div>
+    `;
+
+    modal.querySelector('.confirm-title').textContent = title;
+    modal.querySelector('.confirm-message').textContent = message;
+    modal.querySelector('.confirm-cancel').textContent = cancelText;
+    const okBtn = modal.querySelector('.confirm-ok');
+    okBtn.textContent = confirmText;
+    if (danger) okBtn.classList.add('btn-danger-solid');
+
+    document.body.appendChild(modal);
+
+    const cleanup = () => {
+      document.removeEventListener('keydown', onKey);
+      closeModal(modal);
+      // 等出场动画结束再移除节点，与 closeWithAnimation 的兜底时长一致
+      setTimeout(() => modal.remove(), 300);
+    };
+
+    const settle = value => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    const onKey = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        settle(false);
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        settle(true);
+      }
+    };
+
+    okBtn.addEventListener('click', () => settle(true));
+    modal.querySelector('.confirm-cancel').addEventListener('click', () => settle(false));
+
+    // 点击遮罩（内容区之外）视为取消
+    modal.addEventListener('click', event => {
+      if (event.target === modal) settle(false);
+    });
+
+    document.addEventListener('keydown', onKey);
+
+    // 下一帧再加 .active，确保入场动画能播放
+    requestAnimationFrame(() => {
+      modal.classList.add('active');
+      okBtn.focus();
+    });
+  });
+}
+
 function showToast(message, type = 'success', duration = 3000) {
   // 移除已有 toast
   const existing = document.querySelector('.toast');
@@ -965,7 +1052,12 @@ async function renderSettingsPage(tab = 'profile') {
 
       if (regenBtn) {
         regenBtn.addEventListener('click', async function() {
-          if (!confirm('重新生成将替换所有旧的恢复码，确定继续吗？')) return;
+          const ok = await showConfirm('重新生成将替换所有旧的恢复码，确定继续吗？', {
+            title: '重新生成恢复码',
+            confirmText: '重新生成',
+            danger: true,
+          });
+          if (!ok) return;
           try {
             const data = await API.generateRecoveryCodes();
             showRecoveryCodesModal(data.codes);

@@ -116,7 +116,10 @@ document.getElementById('regCaptchaQuestion').addEventListener('click', function
 
 // 退出
 document.getElementById('logoutBtn').addEventListener('click', async () => {
-  if (!confirm('确定要退出吗？')) return;
+  const ok = await showConfirm('确定要退出吗？', {
+    title: '退出登录', confirmText: '退出',
+  });
+  if (!ok) return;
   await API.logout();
   currentUser = null;
   renderNav();
