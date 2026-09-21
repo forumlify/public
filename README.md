@@ -98,8 +98,8 @@ tar czf forumlify-uploads.tar.gz uploads/
 1. **克隆并安装依赖**
 
 ```bash
-git clone https://github.com/public/tree/lite.git
-cd forumlify
+git clone https://github.com/forumlify/public.git
+cd public
 npm install
 ```
 
@@ -120,9 +120,7 @@ psql -U forumlify -d forumlify -f schema.sql
 | `JWT_SECRET` | 本地开发使用内置值 | JWT 签名密钥；生产环境必须显式设置，建议至少 32 个字符。较短的旧密钥会产生警告但仍可启动，便于安排会话失效窗口后再轮换 |
 | `ALLOWED_ORIGINS` | 空 | 允许跨域访问的来源，多个值用逗号分隔；为空时仅支持同源访问 |
 | `TRUST_PROXY` | `false` | 位于可信反向代理后时设为 `true`，用于正确识别限流 IP |
-
 | `PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / `PGDATABASE` | PostgreSQL 客户端默认值 | 可替代 `DATABASE_URL`，Compose 使用这些变量避免密码 URL 编码问题 |
-
 | `ADMIN_BOOTSTRAP_TOKEN` | 空 | 首次部署时设置强随机值；注册页填写相同值可创建唯一初始管理员，初始化后应删除该变量 |
 
 
