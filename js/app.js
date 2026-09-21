@@ -474,7 +474,7 @@ async function sendMessage() {
       renderMessageList();
     }
   } catch (err) {
-    alert('发送失败：' + err.message);
+    showToast('发送失败：' + err.message, 'error');
   }
 }
 
@@ -497,7 +497,7 @@ async function openPrivateChat(otherUserId, otherUsername) {
       }
     }, 3000);
   } catch (err) {
-    alert('打开私信失败：' + err.message);
+    showToast('打开私信失败：' + err.message, 'error');
   }
 }
 
@@ -520,15 +520,15 @@ function handleImageFiles(files) {
 
   for (const file of files) {
     if (selectedImageFiles.length >= 6) {
-      alert('每篇帖子最多上传 6 张图片');
+      showToast('每篇帖子最多上传 6 张图片', 'warning');
       break;
     }
     if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-      alert('图片 ' + file.name + ' 格式不支持');
+      showToast('图片 ' + file.name + ' 格式不支持', 'error');
       continue;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('图片 ' + file.name + ' 超过 5MB，请压缩后上传');
+      showToast('图片 ' + file.name + ' 超过 5MB，请压缩后上传', 'warning');
       continue;
     }
 
@@ -911,17 +911,17 @@ async function renderSettingsPage(tab = 'profile') {
         const username = document.getElementById('settingsUsername').value.trim();
         const bio = document.getElementById('settingsBio').value.trim();
         const signature = document.getElementById('settingsSignature').value.trim();
-        if (!username) { alert('用户名不能为空'); return; }
+        if (!username) { showToast('用户名不能为空', 'error'); return; }
         try {
           await API.updateProfile(user.id, username, bio, signature);
           currentUser.username = username;
           currentUser.bio = bio;
           currentUser.signature = signature;
-          alert('保存成功！');
+          showToast('保存成功！', 'success');
           renderNav();
           renderSettingsPage('profile');
         } catch (err) {
-          alert('保存失败：' + err.message);
+          showToast('保存失败：' + err.message, 'error');
         }
       });
     }
@@ -1045,7 +1045,7 @@ async function renderSettingsPage(tab = 'profile') {
             const countData = await API.getRecoveryCodesCount();
             if (recoveryStatus) recoveryStatus.textContent = '剩余 ' + (countData.count || 0) + ' 个可用恢复码';
           } catch (err) {
-            alert('获取恢复码失败：' + err.message);
+            showToast('获取恢复码失败：' + err.message, 'error');
           }
         });
       }
@@ -1064,7 +1064,7 @@ async function renderSettingsPage(tab = 'profile') {
             const countData = await API.getRecoveryCodesCount();
             if (recoveryStatus) recoveryStatus.textContent = '剩余 ' + (countData.count || 0) + ' 个可用恢复码';
           } catch (err) {
-            alert('重新生成失败：' + err.message);
+            showToast('重新生成失败：' + err.message, 'error');
           }
         });
       }
@@ -1118,7 +1118,7 @@ function openEditModal(postId, currentTitle, currentContent) {
   modal.querySelector('#editPostSaveBtn').addEventListener('click', async function() {
     const title = document.getElementById('editPostTitle').value.trim() || '无标题';
     const content = document.getElementById('editPostContent').value.trim();
-    if (!content) { alert('请填写内容'); return; }
+    if (!content) { showToast('请填写内容', 'warning'); return; }
 
     try {
       await API.updatePost(postId, title, content);
@@ -1128,9 +1128,9 @@ function openEditModal(postId, currentTitle, currentContent) {
       } else {
         renderFeed();
       }
-      alert('编辑成功！');
+      showToast('编辑成功！', 'success');
     } catch (err) {
-      alert('编辑失败：' + err.message);
+      showToast('编辑失败：' + err.message, 'error');
     }
   });
 }
@@ -1335,7 +1335,7 @@ async function init() {
       e.preventDefault();
       const page = this.dataset.page;
       if (page === 'admin' && currentUser?.role !== 'admin') {
-        alert('无权限访问');
+        showToast('无权限访问', 'error');
         return;
       }
       closeDropdown(document.getElementById('dropdownMenu'));
@@ -1398,13 +1398,13 @@ async function init() {
 
   // ===== 发帖 =====
   document.getElementById('fab').addEventListener('click', () => {
-    if (!currentUser) { alert('请先登录'); return; }
+    if (!currentUser) { showToast('请先登录', 'warning'); return; }
     switchPage('new');
   });
 
   document.getElementById('postSubmit').addEventListener('click', async () => {
     if (!currentUser || !currentUser.id) {
-      alert('请先登录');
+      showToast('请先登录', 'warning');
       switchPage('feed');
       return;
     }
@@ -1412,8 +1412,8 @@ async function init() {
     const content = document.getElementById('postContent').value.trim();
     const captchaInput = document.getElementById('postCaptchaInput').value.trim();
     const captchaAnswer = parseInt(document.getElementById('postCaptchaInput').dataset.answer);
-    if (!content) { alert('请填写内容'); return; }
-    if (parseInt(captchaInput) !== captchaAnswer) { alert('验证码错误，请重新计算'); refreshCaptcha('post'); return; }
+    if (!content) { showToast('请填写内容', 'warning'); return; }
+    if (parseInt(captchaInput) !== captchaAnswer) { showToast('验证码错误，请重新计算', 'error'); refreshCaptcha('post'); return; }
     const submitButton = document.getElementById('postSubmit');
     submitButton.disabled = true;
     submitButton.textContent = selectedImageFiles.length ? '上传图片中...' : '发布中...';
@@ -1425,13 +1425,13 @@ async function init() {
       }
       await API.createPost(title, content, images);
 
-      alert('发布成功！');
+      showToast('发布成功！', 'success');
       clearSelectedImages();
       switchPage('feed');
       renderFeed();
       renderStats();
     } catch (err) {
-      alert('发布失败：' + err.message);
+      showToast('发布失败：' + err.message, 'error');
     } finally {
       submitButton.disabled = false;
       submitButton.textContent = '发布帖子';
@@ -1489,10 +1489,10 @@ async function init() {
     try {
       await API.createReport(reportTargetPostId, reason);
       closeModal(document.getElementById('reportModal'));
-      alert('举报已提交，管理员将尽快处理');
+      showToast('举报已提交，管理员将尽快处理', 'success');
       reportTargetPostId = null;
     } catch (err) {
-      alert('举报失败：' + err.message);
+      showToast('举报失败：' + err.message, 'error');
     }
   });
 
@@ -1533,7 +1533,7 @@ async function init() {
     messageBtn.parentNode.replaceChild(newBtn, messageBtn);
     newBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      if (!currentUser) { alert('请先登录'); return; }
+      if (!currentUser) { showToast('请先登录', 'warning'); return; }
       openMessageList();
     });
   }

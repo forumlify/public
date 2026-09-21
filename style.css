@@ -2960,3 +2960,99 @@ a.btn-secondary {
     width: 100%;
   }
 }
+
+/* ============================================================
+   ⌨️ 输入框统一凹陷效果
+   ------------------------------------------------------------
+   输入框样式此前散落在至少 8 组选择器里（.modal-content /
+   #pageSettings / #pageNew / #replyArea / #chatInput 等），各写一套
+   背景色，亮色下多为半透明白叠在白底上，几乎看不出输入区边界。
+   这里统一收口，给所有输入控件加上内凹阴影，靠「凹陷」而非描边
+   来表明可输入区域。
+
+   实现要点：
+   - 用 inset box-shadow 制造整体内凹（上深下浅，模拟受光方向）
+   - 亮色用白底 + 深色内阴影；暗色用深底 + 更深内阴影
+   - 聚焦时凹陷消失并换成品牌色光晕，形成明确的「浮起可编辑」反馈
+   - !important 用于压过各处既有的散装 background/border 声明
+   ============================================================ */
+
+:root {
+  /* 凹陷：上方投影较重、下方较浅，模拟向内受光 */
+  --inset-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.12),
+                  inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  --inset-border: rgba(0, 0, 0, 0.18);
+  /* 输入区底色需与白色弹窗/卡片明显区分，取值偏灰以保证一眼可辨 */
+  --inset-bg: #eef1f6;
+  /* 聚焦时的实心底色：亮色取白，暗色取深色（下方按主题覆盖） */
+  --input-focus-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --inset-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55),
+                  inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  --inset-border: rgba(255, 255, 255, 0.14);
+  /* 比弹窗底色更深，形成下沉感 */
+  --inset-bg: rgba(0, 0, 0, 0.32);
+  --input-focus-bg: rgba(0, 0, 0, 0.42);
+}
+
+/* 覆盖所有文本输入控件。排除 checkbox/radio/file/range/color 等
+   非文本控件，它们用凹陷阴影会显得突兀。 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]),
+textarea,
+select {
+  background: var(--inset-bg) !important;
+  border: 1px solid var(--inset-border) !important;
+  box-shadow: var(--inset-shadow) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: box-shadow var(--dur-base, 0.26s) ease,
+              border-color var(--dur-base, 0.26s) ease,
+              background var(--dur-base, 0.26s) ease !important;
+}
+
+/* 聚焦：内凹消失，换成品牌色外发光，明确当前编辑目标 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  background: var(--input-focus-bg) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+  background: var(--input-focus-bg) !important;
+}
+
+/* 悬停时轻微加深边框，提示可交互 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):hover:not(:focus),
+textarea:hover:not(:focus),
+select:hover:not(:focus) {
+  border-color: rgba(0, 0, 0, 0.24) !important;
+}
+
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]):hover:not(:focus),
+[data-theme="dark"] textarea:hover:not(:focus),
+[data-theme="dark"] select:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 占位符与被禁用状态 */
+input::placeholder,
+textarea::placeholder {
+  color: var(--glass-text-light) !important;
+  opacity: 0.75;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* 搜索框、验证码等内嵌小输入框同样适用，无需单独处理 */

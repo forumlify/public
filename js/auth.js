@@ -10,7 +10,7 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 document.getElementById('loginSubmit').addEventListener('click', async () => {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if (!email || !password) { alert('请填写完整信息'); return; }
+  if (!email || !password) { showToast('请填写完整信息', 'warning'); return; }
   try {
     const result = await API.login(email, password);
     closeModal(document.getElementById('loginModal'));
@@ -27,7 +27,7 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
       }
     }
   } catch (err) {
-    alert('登录失败：' + err.message);
+    showToast('登录失败：' + err.message, 'error');
   }
 });
 
@@ -66,13 +66,13 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     : '';
   const captchaInput = document.getElementById('regCaptchaInput').value.trim();
   const captchaAnswer = parseInt(document.getElementById('regCaptchaInput').dataset.answer);
-  if (!username || !email || !password) { alert('请填写完整信息'); return; }
-  if (password.length < 6) { alert('密码至少6位'); return; }
-  if (parseInt(captchaInput) !== captchaAnswer) { alert('验证码错误，请重新计算'); refreshCaptcha('reg'); return; }
+  if (!username || !email || !password) { showToast('请填写完整信息', 'warning'); return; }
+  if (password.length < 6) { showToast('密码至少6位', 'warning'); return; }
+  if (parseInt(captchaInput) !== captchaAnswer) { showToast('验证码错误，请重新计算', 'error'); refreshCaptcha('reg'); return; }
   try {
     await API.register(email, password, username, bootstrapToken);
   } catch (err) {
-    alert('注册失败：' + err.message);
+    showToast('注册失败：' + err.message, 'error');
     return;
   }
 
@@ -95,7 +95,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
       renderStats();
     }
   } catch (err) {
-    alert('注册成功，但自动登录失败，请手动登录：' + err.message);
+    showToast('注册成功，但自动登录失败，请手动登录：' + err.message, 'error');
     return;
   }
 
@@ -106,7 +106,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     }
   } catch (err) {
     console.warn('恢复码生成失败:', err);
-    alert('注册并登录成功，但恢复码生成失败。请稍后在设置中重新生成。');
+    showToast('注册并登录成功，但恢复码生成失败。请稍后在设置中重新生成。', 'error');
   }
 });
 

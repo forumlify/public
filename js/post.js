@@ -159,7 +159,7 @@ async function renderPostDetail(postId) {
         API.togglePinPost(postId).then(() => {
           renderPostDetail(postId);
           renderFeed();
-        }).catch(err => alert('操作失败：' + err.message));
+        }).catch(err => showToast('操作失败：' + err.message, 'error'));
       });
     }
 
@@ -182,11 +182,11 @@ async function renderPostDetail(postId) {
         });
         if (!ok) return;
         API.deletePost(postId).then(() => {
-          alert('删除成功');
+          showToast('删除成功', 'success');
           switchPage('feed');
           renderFeed();
           renderStats();
-        }).catch(err => alert('删除失败：' + err.message));
+        }).catch(err => showToast('删除失败：' + err.message, 'error'));
       });
     }
 
@@ -200,7 +200,7 @@ async function renderPostDetail(postId) {
         if (!ok) return;
         API.deleteReply(replyId).then(() => {
           renderPostDetail(postId);
-        }).catch(err => alert('删除失败：' + err.message));
+        }).catch(err => showToast('删除失败：' + err.message, 'error'));
       });
     });
 
@@ -229,12 +229,12 @@ async function renderPostDetail(postId) {
 }
 
 async function handleReplySubmit(postId) {
-  if (!currentUser) { alert('请先登录'); return; }
+  if (!currentUser) { showToast('请先登录', 'warning'); return; }
   const content = document.getElementById('replyContent').value.trim();
   const captchaInput = document.getElementById('replyCaptchaInput').value.trim();
   const captchaAnswer = parseInt(document.getElementById('replyCaptchaInput').dataset.answer);
-  if (!content) { alert('请填写回复内容'); return; }
-  if (parseInt(captchaInput) !== captchaAnswer) { alert('验证码错误，请重新计算'); refreshCaptcha('reply'); return; }
+  if (!content) { showToast('请填写回复内容', 'warning'); return; }
+  if (parseInt(captchaInput) !== captchaAnswer) { showToast('验证码错误，请重新计算', 'error'); refreshCaptcha('reply'); return; }
   try {
     await API.createReply(postId, content);
 
@@ -244,6 +244,6 @@ async function handleReplySubmit(postId) {
     }
     renderStats();
   } catch (err) {
-    alert('回复失败：' + err.message);
+    showToast('回复失败：' + err.message, 'error');
   }
 }

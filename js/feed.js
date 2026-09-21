@@ -187,7 +187,7 @@ function renderFeed() {
     container.querySelectorAll('.action-report').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (!currentUser) { alert('请先登录'); return; }
+        if (!currentUser) { showToast('请先登录', 'warning'); return; }
         reportTargetPostId = this.dataset.postid;
         document.getElementById('reportModal').classList.add('active');
       });
@@ -202,7 +202,7 @@ function renderFeed() {
         API.deletePost(this.dataset.postid).then(() => {
           renderFeed();
           renderStats();
-        }).catch(err => alert('删除失败：' + err.message));
+        }).catch(err => showToast('删除失败：' + err.message, 'error'));
       });
     });
   }).catch(err => {

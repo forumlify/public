@@ -55,7 +55,7 @@ function renderAdminReports() {
         }
         API.updateReport(id, status, note).then(() => {
           renderAdminReports();
-        }).catch(err => alert('操作失败：' + err.message));
+        }).catch(err => showToast('操作失败：' + err.message, 'error'));
       });
     });
   }).catch(() => {
@@ -218,7 +218,7 @@ function renderAdminUsers(page = 1, search = '') {
         if (!ok) return;
         API.updateUserRole(userId, role).then(() => {
           renderAdminUsers(currentUsersPage, usersSearchKeyword);
-        }).catch(err => alert('操作失败：' + err.message));
+        }).catch(err => showToast('操作失败：' + err.message, 'error'));
       });
     });
 
@@ -404,7 +404,7 @@ function renderAdminLinks() {
           if (!ok) return;
           API.deleteLink(this.dataset.linkid).then(() => {
             loadLinks();
-          }).catch(err => alert('删除失败：' + err.message));
+          }).catch(err => showToast('删除失败：' + err.message, 'error'));
         });
       });
     }).catch(() => {});
@@ -413,12 +413,12 @@ function renderAdminLinks() {
   document.getElementById('addLinkBtn').addEventListener('click', function() {
     const title = document.getElementById('newLinkTitle').value.trim();
     const url = document.getElementById('newLinkUrl').value.trim();
-    if (!title || !url) { alert('请填写完整信息'); return; }
+    if (!title || !url) { showToast('请填写完整信息', 'warning'); return; }
     API.addLink(title, url).then(() => {
       document.getElementById('newLinkTitle').value = '';
       document.getElementById('newLinkUrl').value = '';
       loadLinks();
-    }).catch(err => alert('添加失败：' + err.message));
+    }).catch(err => showToast('添加失败：' + err.message, 'error'));
   });
 }
 
@@ -445,7 +445,7 @@ function renderAdminSettings() {
 
   document.getElementById('settingsForumSave').addEventListener('click', async () => {
     const name = document.getElementById('settingsForumName').value.trim();
-    if (!name) { alert('请输入论坛名称'); return; }
+    if (!name) { showToast('请输入论坛名称', 'warning'); return; }
     try {
       await API.updateSettings(name);
       document.getElementById('settingsResult').innerHTML = `${getIcon('success')} 保存成功！`;
@@ -669,7 +669,7 @@ function loadCustomPageList() {
         API.deleteCustomPage(this.dataset.id).then(() => {
           loadCustomPageList();
           loadCustomPagesNav();
-        }).catch(err => alert('删除失败：' + err.message));
+        }).catch(err => showToast('删除失败：' + err.message, 'error'));
       });
     });
   }).catch(err => {
@@ -728,11 +728,11 @@ function openCustomPageEditor(page) {
     const content = document.getElementById('editorContent').value.trim();
     const enabled = document.getElementById('editorEnabled').value === 'true';
 
-    if (!name) { alert('请输入页面名称'); return; }
-    if (!title) { alert('请输入导航栏显示名称'); return; }
-    if (!content) { alert('请输入页面内容'); return; }
+    if (!name) { showToast('请输入页面名称', 'warning'); return; }
+    if (!title) { showToast('请输入导航栏显示名称', 'warning'); return; }
+    if (!content) { showToast('请输入页面内容', 'warning'); return; }
     if (!/^[a-zA-Z0-9\-_]+$/.test(name)) {
-      alert('页面名称只允许字母、数字、短横线和下划线');
+      showToast('页面名称只允许字母、数字、短横线和下划线', 'warning');
       return;
     }
 
@@ -746,7 +746,7 @@ function openCustomPageEditor(page) {
       loadCustomPageList();
       loadCustomPagesNav();
     } catch (err) {
-      alert('保存失败：' + err.message);
+      showToast('保存失败：' + err.message, 'error');
     }
   });
 }
