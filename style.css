@@ -2965,6 +2965,137 @@ a.btn-secondary {
 }
 
 /* ============================================================
+   📧 注册邮箱验证码
+   ------------------------------------------------------------
+   验证码输入框与「获取验证码」按钮并排，输入框占据剩余宽度。
+   此前这两个元素靠行内样式排列，但容器漏了 display:flex，导致
+   gap / align-items / flex:1 全部失效，实际渲染成上下两行。
+   现在布局由类名控制，显隐只切 .is-visible，避免相互干扰。
+   ============================================================ */
+
+.email-code-row {
+  display: none;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.email-code-row.is-visible {
+  display: flex;
+}
+
+/* 输入框占满按钮之外的剩余空间 */
+.email-code-row #regEmailCode {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+/* 按钮保持自然宽度，倒计时数字变化时不被压缩 */
+.email-code-row #regSendCodeBtn {
+  flex: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 96px;
+  /* 与输入框严格等高：按钮的行高受继承影响会比输入框高几像素，
+     在 align-items:center 下会出现轻微错位，这里显式对齐。 */
+  line-height: 18px;
+  height: 38px;
+  box-sizing: border-box;
+  /* 用品牌色实心按钮，与旁边的输入框明确区分——
+     若沿用模态框内按钮的浅灰底，会和输入框几乎同色，
+     看起来像第二个输入框而非可点击的控件。 */
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.email-code-row #regSendCodeBtn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.email-code-row #regSendCodeBtn:disabled {
+  /* 倒计时期间保持可见但明显不可点 */
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   🔘 模态框内的按钮
+   ------------------------------------------------------------
+   .btn-primary / .btn-secondary 的背景取自 --glass-bg，亮色下为
+   18% 的不透明白。这种取值原本是叠在模糊背景上用的，但模态框现在
+   已是纯白底（见 .modal-content 的说明），半透明白叠在白底上完全
+   看不出按钮轮廓，只剩文字浮在那里。
+
+   这里为模态框内的按钮给出明确的底色与描边，并按主题分别处理。
+   仅作用于 .modal-content 内部，不影响页面其他位置的按钮。
+   ============================================================ */
+
+.modal-content .btn-primary,
+.modal-content .btn-secondary {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background var(--dur-base, 0.26s) ease,
+              border-color var(--dur-base, 0.26s) ease,
+              box-shadow var(--dur-base, 0.26s) ease;
+}
+
+/* 亮色：浅灰底 + 清晰描边，主按钮略深以示强调 */
+.modal-content .btn-primary {
+  background: #eef1f6;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  color: var(--glass-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.modal-content .btn-primary:hover {
+  background: #e4e9f1;
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+.modal-content .btn-secondary {
+  background: #f7f9fc;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: var(--glass-text);
+  box-shadow: none;
+}
+
+.modal-content .btn-secondary:hover {
+  background: #eef1f6;
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+/* 暗色：沿用半透明质感，但提高对比度以保证按钮边界可见 */
+[data-theme="dark"] .modal-content .btn-primary,
+[data-theme="dark"] .modal-content .btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--glass-text);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .modal-content .btn-primary:hover,
+[data-theme="dark"] .modal-content .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* 禁用态（如验证码倒计时中） */
+.modal-content .btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ============================================================
    ❓ 确认对话框
    ------------------------------------------------------------
    替代浏览器原生 confirm()。结构由 js/app.js 的 showConfirm()

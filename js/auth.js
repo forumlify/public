@@ -39,7 +39,9 @@ document.getElementById('registerBtn').addEventListener('click', () => {
   document.getElementById('registerModal').classList.add('active');
 });
 
-// 邮箱验证码字段：仅在站点开启邮箱验证且 SMTP 可用时显示
+// 邮箱验证码字段：仅在站点开启邮箱验证且 SMTP 可用时显示。
+// 显隐通过切换类名完成，布局交给 CSS——直接改 style.display 会覆盖
+// 掉保证输入框与按钮并排的 flex 布局。
 async function syncEmailCodeField() {
   const row = document.getElementById('regEmailCodeRow');
   const field = document.getElementById('regEmailCode');
@@ -47,11 +49,11 @@ async function syncEmailCodeField() {
   try {
     const settings = await API.getSettings();
     const required = settings.email_verify_required === true;
-    row.style.display = required ? '' : 'none';
+    row.classList.toggle('is-visible', required);
     if (!required) field.value = '';
   } catch (err) {
     // 取不到设置时按「不需要」处理，避免用户卡在无法完成的注册流程上
-    row.style.display = 'none';
+    row.classList.remove('is-visible');
     field.value = '';
   }
 }
@@ -116,14 +118,15 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     ? bootstrapField.value.trim()
     : '';
   const codeField = document.getElementById('regEmailCode');
-  const emailCode = codeField && codeField.style.display !== 'none'
-    ? codeField.value.trim()
-    : '';
+  const codeRow = document.getElementById('regEmailCodeRow');
+  // 以容器的 is-visible 类判断该字段是否启用，而不是读 style.display
+  const codeEnabled = Boolean(codeRow && codeRow.classList.contains('is-visible'));
+  const emailCode = codeEnabled && codeField ? codeField.value.trim() : '';
   const captchaInput = document.getElementById('regCaptchaInput').value.trim();
   const captchaAnswer = parseInt(document.getElementById('regCaptchaInput').dataset.answer);
   if (!username || !email || !password) { showToast('请填写完整信息', 'warning'); return; }
   if (password.length < 6) { showToast('密码至少6位', 'warning'); return; }
-  if (codeField && codeField.style.display !== 'none' && !emailCode) {
+  if (codeEnabled && !emailCode) {
     showToast('请输入邮箱验证码', 'warning'); return;
   }
   if (parseInt(captchaInput) !== captchaAnswer) { showToast('验证码错误，请重新计算', 'error'); refreshCaptcha('reg'); return; }

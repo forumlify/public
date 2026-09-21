@@ -369,11 +369,9 @@
       <input type="email" id="regEmail" placeholder="邮箱" />
       <input type="password" id="regPassword" placeholder="密码（至少6位）" />
       <input type="password" id="regBootstrapToken" placeholder="管理员初始化令牌" autocomplete="off" style="display:none;" />
-      <div id="regEmailCodeRow" style="display:none;gap:8px;align-items:center;margin-bottom:12px;">
-        <input type="text" id="regEmailCode" placeholder="邮箱验证码" autocomplete="off"
-               style="flex:1;margin-bottom:0;font-family:monospace;letter-spacing:2px;" />
-        <button type="button" id="regSendCodeBtn" class="btn-secondary"
-                style="padding:10px 14px;white-space:nowrap;font-size:13px;">获取验证码</button>
+      <div id="regEmailCodeRow" class="email-code-row">
+        <input type="text" id="regEmailCode" placeholder="邮箱验证码" autocomplete="off" />
+        <button type="button" id="regSendCodeBtn" class="btn-secondary">获取验证码</button>
       </div>
       <div class="captcha-row">
         <span id="regCaptchaQuestion">3 + 5 = ?</span>
