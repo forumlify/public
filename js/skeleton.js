@@ -27,10 +27,13 @@ const Skeleton = {
   },
 
   // 帖子列表
-  postList(count = 4) {
+  // 数量不宜过多：骨架卡片是按「理想内容」画的，实际帖子往往更短
+  // （标题一行、正文一两行），画太多会在真实内容出现时造成容器高度
+  // 骤降，页面内容整体上跳。用 3 张作为折中。
+  postList(count = 3) {
     let html = '';
     for (let i = 0; i < count; i++) {
-      // 第一张带缩略图占位，更接近真实列表的参差感
+      // 第二张带缩略图占位，更接近真实列表的参差感
       html += this.postCard({ withThumbs: i === 1 });
     }
     return html;
@@ -111,7 +114,7 @@ window.Skeleton = Skeleton;
   function insert() {
     const list = document.getElementById('postList');
     if (list && !list.dataset.loaded) {
-      list.innerHTML = Skeleton.postList(4);
+      list.innerHTML = Skeleton.postList(3);
     }
   }
   if (document.readyState === 'loading') {

@@ -24,7 +24,7 @@ function renderFeed() {
   // 造成明显的闪动，反而比直接留白更糟。
   const isFirstLoad = container.dataset.loaded !== '1';
   container.innerHTML = isFirstLoad
-    ? Skeleton.postList(4)
+    ? Skeleton.postList(3)
     : '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
   API.getPosts(currentSort, currentPageNum, PAGE_SIZE).then(result => {
     container.dataset.loaded = '1';
@@ -218,14 +218,9 @@ function renderFeed() {
   });
 }
 
-function renderStats() {
-  API.getStats().then(stats => {
-    document.getElementById('statTopics').textContent = stats.topics || 0;
-    document.getElementById('statPosts').textContent = stats.posts || 0;
-    document.getElementById('statUsers').textContent = stats.users || 0;
-    // 在线人数已移除
-  }).catch(() => {});
-}
+// 注：renderStats 定义在 app.js 中（同时更新主页与帖子详情页的统计，
+// 且带空值保护）。此处原先有一份同名实现，因 app.js 后加载而被整体
+// 覆盖，属于死代码，已删除以免日后改错地方。
 
 function renderLinks() {
   API.getLinks().then(links => {

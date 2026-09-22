@@ -1385,8 +1385,9 @@ async function init() {
   renderNav();
   await loadForumName();
   await loadCustomPagesNav();
-  renderStats();
-  renderLinks();
+  // renderStats / renderLinks 不在此处调用。下面的页面分发中，
+  // switchPage('feed') 已经会调用它们；若在此处也调一次，
+  // /api/stats 会发出两次请求。
 
   const urlParams = new URLSearchParams(window.location.search);
   const postParam = urlParams.get('post');
@@ -1413,6 +1414,14 @@ async function init() {
     }
   } else {
     switchPage('feed');
+  }
+
+  // 直接通过 URL 打开帖子详情或用户主页时，不会经过 switchPage('feed')，
+  // 侧边栏的统计与友链需要在这里补一次。已在 feed 分支内调用过的情形
+  // 通过 currentPage 判断，避免重复请求。
+  if (currentPage !== 'feed') {
+    renderStats();
+    renderLinks();
   }
 
   // ============================================================
