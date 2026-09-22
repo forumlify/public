@@ -190,9 +190,9 @@ async function renderPostDetail(postId) {
         if (!ok) return;
         API.deletePost(postId).then(() => {
           showToast('删除成功', 'success');
-          switchPage('feed');
-          renderFeed();
-          renderStats();
+          // switchPage('feed') 内部已经会重新渲染列表、统计与友链，
+          // 此处不可再调一次，否则这些接口会各发出两次请求。
+          navigateBackToFeed();
         }).catch(err => showToast('删除失败：' + err.message, 'error'));
       });
     }

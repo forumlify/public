@@ -1544,9 +1544,8 @@ async function init() {
 
       showToast('发布成功！', 'success');
       clearSelectedImages();
+      // switchPage('feed') 内部已重新渲染列表与统计，无需再调一次
       switchPage('feed');
-      renderFeed();
-      renderStats();
     } catch (err) {
       showToast('发布失败：' + err.message, 'error');
     } finally {
