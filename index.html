@@ -107,7 +107,36 @@
         </button>
       </div>
       <div id="postList">
-        <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
+        <!-- 骨架屏直接写在标记里，保证首帧即可见。
+             若留空或写「加载中...」文字，会先闪一帧空白/文字再被
+             JS 替换成骨架，实测有 18ms 的可见闪动。 -->
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-line w-30" style="margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton-line skeleton-title w-60"></div>
+          <div class="skeleton-line w-100"></div>
+          <div class="skeleton-line w-80"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-line w-30" style="margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton-line skeleton-title w-60"></div>
+          <div class="skeleton-line w-100"></div>
+          <div class="skeleton-line w-80"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-line w-30" style="margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton-line skeleton-title w-60"></div>
+          <div class="skeleton-line w-100"></div>
+          <div class="skeleton-line w-80"></div>
+        </div>
       </div>
     </main>
   </div>
