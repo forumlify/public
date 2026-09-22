@@ -3344,3 +3344,97 @@ select:disabled {
 }
 
 /* 搜索框、验证码等内嵌小输入框同样适用，无需单独处理 */
+
+/* ============================================================
+   🎞️ 滚动驱动动画
+   ------------------------------------------------------------
+   让内容随滚动位置渐入，而不是在页面加载时一次性播完——后者在长
+   列表里意味着「下面还没看到的内容早就播完了」。
+
+   兼容性：animation-timeline: view() 目前 Chrome/Edge 115+、
+   Safari 26+ 支持，Firefox 尚未支持（全球覆盖约 87%）。
+   因此全部规则包在 @supports 内，不支持的浏览器会退回上面
+   riseIn 那套基于时间的入场动画，不会出现元素不显示的问题。
+
+   设计上仍保持克制：
+   - 位移 24px 以内，不做夸张的位移或旋转
+   - 动画在元素进入视口下半部时即完成，不拖到正中央才出现
+   - 一旦滚过就保持终态（fill: both），不会来回闪
+   ============================================================ */
+
+@supports (animation-timeline: view()) {
+
+  /* 通用入场：进入视口时自下而上浮现 */
+  @keyframes scrollRise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* 侧边栏区块：从左侧轻轻滑入，与主内容的纵向入场区分开 */
+  @keyframes scrollSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* 覆盖掉基于时间的入场动画：改由滚动位置驱动。
+     注意上面的 .post-card:nth-child(n) 错峰规则选择器权重更高
+     （0,2,0 对 0,1,0），必须用同等或更高权重才能把 animation-delay
+     清零，否则滚动进度与时间延迟会叠加，出现卡顿感。 */
+  .post-card,
+  .post-card:nth-child(n),
+  .reply-item,
+  .reply-item:nth-child(n),
+  .post-detail-card {
+    animation-name: scrollRise;
+    animation-duration: 1ms;          /* 时长由 timeline 决定，此处仅占位 */
+    animation-fill-mode: both;
+    animation-timeline: view();
+    /* 元素从进入视口下缘到走过 25% 视口高度时完成，
+       这样用户在内容完全进入视野前就能看到它 */
+    animation-range: entry 0% entry 25%;
+    /* 清除原先的时间错峰，避免与滚动进度叠加导致延迟感 */
+    animation-delay: 0ms;
+  }
+
+  /* 侧边栏区块 */
+  #sidebar .stats-box,
+  #sidebar .links-box {
+    animation-name: scrollSlideIn;
+    animation-duration: 1ms;
+    animation-fill-mode: both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+    animation-delay: 0ms;
+  }
+
+  /* 卡片悬浮时的抬升稍强一点，配合滚动出现的节奏 */
+  .post-card:hover {
+    transform: translateY(-4px);
+  }
+}
+
+/* 关闭动画时，滚动驱动动画同样要停——它在动画层之外，
+   不会被子面的 prefers-reduced-motion 通配规则覆盖到。 */
+@media (prefers-reduced-motion: reduce) {
+  .post-card,
+  .reply-item,
+  .post-detail-card,
+  #sidebar .stats-box,
+  #sidebar .links-box {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
