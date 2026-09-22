@@ -6,6 +6,18 @@ let currentSort = 'latest';
 let totalPages = 1;
 const PAGE_SIZE = 20;
 
+// 翻页后滚回列表顶部。分页控件在列表末尾，不回到顶部的话用户看到的
+// 仍是新一页的底部。
+// 尊重系统的「减少动画」设置：开启时直接跳转，不做平滑滚动。
+function scrollFeedToTop() {
+  const reduceMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({
+    top: 0,
+    behavior: reduceMotion ? 'auto' : 'smooth',
+  });
+}
+
 function renderFeed() {
   const container = document.getElementById('postList');
   container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
@@ -160,6 +172,9 @@ function renderFeed() {
             url.searchParams.set('postpage', page);
             window.history.pushState({}, '', url);
             renderFeed();
+            // 分页控件位于列表末尾，翻页后若不回到顶部，用户看到的仍是
+            // 新一页的底部，需要手动上滚才能读到第一条。这里平滑滚回顶部。
+            scrollFeedToTop();
           }
         });
       });
