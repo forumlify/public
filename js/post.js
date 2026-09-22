@@ -57,11 +57,13 @@ async function renderPostDetail(postId) {
     const renderedContent = renderMarkdown(post.content || '');
 
     // 签名渲染
+    // 详情页保留签名展示。补上类名以便统一样式定位——列表页的同类元素
+    // 正是靠 .post-signature 隐藏的，此前详情页只有行内样式，无法选中。
     let signatureHtml = '';
     if (post.signature) {
       const sigContent = renderMarkdown(post.signature);
       signatureHtml = `
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
+        <div class="post-signature" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
           ${sigContent}
         </div>
       `;
