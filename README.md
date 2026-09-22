@@ -4,7 +4,7 @@
 
 > 一个简洁、优雅的现代社区系统。5 分钟 Docker 一键部署。
 
-官方演示地址：[Forumlify NEXT](https://next.forumlify.org)
+官方演示地址：【维护中】
 
 
 ## ✨ 特性
