@@ -333,3 +333,30 @@ INSERT INTO settings (key, value) VALUES
   ('smtp_allow_self_signed', 'false'),
   ('email_verify_required', 'false')
 ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================
+--  帖子搜索（对应 migrations/005_post_search.sql）
+-- ------------------------------------------------------------
+--  搜索用 ILIKE 子串匹配。trigram 索引对英文关键词有效（实测 0.2ms，
+--  比全表扫描快约 47 倍），对中文因难以切出有效 trigram 而仍走全表
+--  扫描（3000 条约 7~9ms，可接受）。
+--
+--  创建扩展需要权限，部分托管数据库不开放，故失败时仅提示。
+-- ============================================================
+
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_trgm;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_trgm 扩展创建失败（%）。搜索仍可用，但英文关键词不走索引。', SQLERRM;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm') THEN
+    CREATE INDEX IF NOT EXISTS idx_posts_title_trgm
+      ON posts USING gin (title gin_trgm_ops);
+    CREATE INDEX IF NOT EXISTS idx_posts_content_trgm
+      ON posts USING gin (content gin_trgm_ops);
+  END IF;
+END $$;

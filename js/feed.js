@@ -6,6 +6,9 @@ let currentSort = 'latest';
 let totalPages = 1;
 const PAGE_SIZE = 20;
 
+// 当前搜索关键词。为空表示处于普通列表模式。
+let currentSearch = '';
+
 // 翻页后滚回列表顶部。分页控件在列表末尾，不回到顶部的话用户看到的
 // 仍是新一页的底部。
 // 尊重系统的「减少动画」设置：开启时直接跳转，不做平滑滚动。
@@ -20,13 +23,20 @@ function scrollFeedToTop() {
 
 function renderFeed() {
   const container = document.getElementById('postList');
+  const keyword = currentSearch;
+
   // 骨架屏只在首次加载时显示。翻页时列表已有内容，再画一遍骨架会
   // 造成明显的闪动，反而比直接留白更糟。
   const isFirstLoad = container.dataset.loaded !== '1';
   container.innerHTML = isFirstLoad
     ? Skeleton.postList(3)
     : '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
-  API.getPosts(currentSort, currentPageNum, PAGE_SIZE).then(result => {
+
+  const request = keyword
+    ? API.searchPosts(keyword, currentPageNum, PAGE_SIZE)
+    : API.getPosts(currentSort, currentPageNum, PAGE_SIZE);
+
+  request.then(result => {
     container.dataset.loaded = '1';
     const posts = result.data || [];
     const pagination = result.pagination || { total: 0, totalPages: 1, page: 1 };
@@ -34,8 +44,14 @@ function renderFeed() {
     currentPageNum = pagination.page || 1;
 
     if (posts.length === 0 && currentPageNum === 1) {
-      container.innerHTML =
-        '<div style="text-align:center;color:#94a3b8;padding:60px 0;">✨ 还没有帖子，快来发布第一条吧！</div>';
+      // 空结果提示。关键词单独放在 <strong> 里，让固定文案能作为独立
+      // 文本节点被 i18n 匹配到——整句含动态关键词时匹配不上词典。
+      container.innerHTML = keyword
+        ? '<div class="search-empty">'
+          + '<span>没有找到相关帖子</span><br>'
+          + '<strong>「' + escapeHTML(keyword) + '」</strong><br>'
+          + '<span style="font-size:13px;">试试其他关键词，或检查是否有错别字</span></div>'
+        : '<div style="text-align:center;color:#94a3b8;padding:60px 0;">✨ 还没有帖子，快来发布第一条吧！</div>';
       return;
     }
 
@@ -250,3 +266,90 @@ document.querySelectorAll('.tab').forEach(tab => {
     renderFeed();
   });
 });
+
+// ============================================================
+//  🔍 搜索
+// ============================================================
+// 输入时防抖 350ms 自动搜索，回车立即搜索。
+// 关键词写入 URL（?q=），刷新与分享可保持搜索状态。
+
+(function initSearch() {
+  const input = document.getElementById('postSearchInput');
+  const clearBtn = document.getElementById('postSearchClear');
+  const wrap = input ? input.closest('.feed-search') : null;
+  if (!input) return;
+
+  let debounceTimer = null;
+
+  function syncClearButton() {
+    if (clearBtn) clearBtn.style.display = input.value.trim() ? 'flex' : 'none';
+  }
+
+  function runSearch(keyword, { updateUrl = true } = {}) {
+    const next = (keyword || '').trim();
+    // 与当前状态相同则不必重新请求
+    if (next === currentSearch && currentPageNum === 1) return;
+
+    currentSearch = next;
+    currentPageNum = 1;
+
+    if (updateUrl) {
+      const url = new URL(window.location);
+      if (next) url.searchParams.set('q', next);
+      else url.searchParams.delete('q');
+      url.searchParams.delete('postpage');
+      window.history.pushState({}, '', url);
+    }
+
+    if (wrap) wrap.classList.add('is-searching');
+    renderFeed();
+    // renderFeed 内部是异步的，这里在下一轮事件循环后移除进度条即可
+    // （列表本身会先显示「加载中」，不会长时间空白）
+    window.setTimeout(() => {
+      if (wrap) wrap.classList.remove('is-searching');
+    }, 600);
+  }
+
+  input.addEventListener('input', () => {
+    syncClearButton();
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => runSearch(input.value), 350);
+  });
+
+  // 回车立即搜索，跳过防抖
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      runSearch(input.value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      input.value = '';
+      syncClearButton();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      runSearch('');
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      syncClearButton();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      runSearch('');
+      input.focus();
+    });
+  }
+
+  // 暴露给外部（初始化时按 URL 恢复搜索状态）
+  window.__feedSearch = {
+    setKeyword(keyword) {
+      input.value = keyword || '';
+      currentSearch = (keyword || '').trim();
+      syncClearButton();
+    },
+    run: runSearch,
+  };
+
+  syncClearButton();
+})();

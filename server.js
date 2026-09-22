@@ -1167,6 +1167,72 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// 搜索帖子（公开）
+// 用 ILIKE 做子串匹配：PostgreSQL 的全文检索对中文需要额外分词扩展
+// （zhparser 等），否则中文搜不出来；ILIKE 无需扩展即可正确匹配中文
+// 子串，英文也天然大小写不敏感。数据量在万级以内性能足够。
+//
+// 转义 % 与 _：它们是 LIKE 的通配符，用户搜索「100%」这类内容时若不
+// 转义会被当作模式匹配。
+function escapeLikePattern(value) {
+  return value.replace(/[\\%_]/g, match => '\\' + match);
+}
+
+// 注意：本路由必须声明在 /api/posts/:id 之前，否则 search 会被当作 id
+app.get('/api/posts/search', async (req, res) => {
+  const raw = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+  if (raw.length === 0) {
+    return res.status(400).json({ error: '请输入搜索关键词' });
+  }
+  if (raw.length > 100) {
+    return res.status(400).json({ error: '搜索关键词过长（最多 100 字）' });
+  }
+
+  const pagination = parsePagination(req.query);
+  if (!pagination) return res.status(400).json({ error: '分页参数无效' });
+  const { page, limit, offset } = pagination;
+
+  const pattern = '%' + escapeLikePattern(raw) + '%';
+
+  try {
+    const countResult = await pool.query(
+      `SELECT COUNT(*) AS total FROM posts p
+       WHERE p.title ILIKE $1 OR p.content ILIKE $1`,
+      [pattern]
+    );
+    const total = parseInt(countResult.rows[0]?.total || 0);
+
+    const r = await pool.query(
+      `SELECT
+         p.*,
+         u.username,
+         u.avatar_url,
+         u.signature,
+         (SELECT COUNT(*) FROM replies WHERE post_id = p.id) AS reply_count
+       FROM posts p
+       JOIN users u ON p.user_id = u.id
+       WHERE p.title ILIKE $1 OR p.content ILIKE $1
+       ORDER BY p.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [pattern, limit, offset]
+    );
+
+    res.json({
+      data: r.rows,
+      query: raw,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 获取单个帖子
 app.get('/api/posts/:id', validateUuidId, async (req, res) => {
   try {

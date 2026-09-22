@@ -1395,6 +1395,13 @@ async function init() {
   const userParam = urlParams.get('user');
   const postPageParam = urlParams.get('postpage');
   const customParam = urlParams.get('custom');
+  const searchParam = urlParams.get('q');
+
+  // 恢复搜索状态：关键词要先于 renderFeed 设定，否则首屏会先按
+  // 普通列表加载一次，再因搜索条件变化重新请求。
+  if (searchParam && window.__feedSearch) {
+    window.__feedSearch.setKeyword(searchParam);
+  }
 
   if (postPageParam) {
     currentPageNum = parseInt(postPageParam) || 1;

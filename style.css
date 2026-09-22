@@ -3468,6 +3468,127 @@ select:disabled {
   box-shadow: none !important;
 }
 
+/* ============================================================
+   🔍 帖子搜索
+   ============================================================ */
+
+.feed-search {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+  max-width: 280px;
+  /* 夹在排序标签与发布按钮之间，靠右对齐 */
+  margin-left: auto;
+}
+
+.feed-search input {
+  width: 100%;
+  box-sizing: border-box;
+  /* 右侧留出清除按钮的位置 */
+  padding-right: 34px !important;
+  margin-bottom: 0 !important;
+}
+
+/* 有内容时才出现的清除按钮 */
+.feed-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--glass-text-light);
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease, color var(--dur-fast, 0.16s) ease;
+}
+
+.feed-search-clear:hover {
+  background: rgba(127, 127, 147, 0.18);
+  color: var(--glass-text);
+}
+
+/* 搜索中：输入框右侧显示一个细进度条，替代整块骨架屏
+   （搜索通常很快，画骨架反而闪得厉害） */
+.feed-search.is-searching::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  background-size: 200% 100%;
+  animation: searchProgress 0.9s linear infinite;
+}
+
+@keyframes searchProgress {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-search.is-searching::after {
+    animation: none;
+    background: var(--primary);
+  }
+}
+
+/* 窄屏时搜索框独占一行，避免与标签、按钮挤在一起 */
+@media (max-width: 640px) {
+  .feed-search {
+    order: 3;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-top: 10px;
+  }
+}
+
+/* 搜索结果提示条 */
+.search-summary {
+  font-size: 13px;
+  color: var(--glass-text-light);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.search-summary strong {
+  color: var(--glass-text);
+}
+
+.search-summary button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+/* 无搜索结果 */
+.search-empty {
+  text-align: center;
+  color: var(--glass-text-light);
+  padding: 60px 0;
+  line-height: 1.9;
+}
+
+.search-empty strong {
+  color: var(--glass-text);
+}
+
 /* ===== 列表容器高度稳定 =====
    骨架屏按「理想内容」绘制，实际帖子往往更短，数据到达时容器高度会
    骤降，导致其下方的内容（分页控件、页脚）整体上跳——这就是首屏

@@ -372,6 +372,14 @@ const TRANSLATIONS = {
     '重新生成恢复码': '重新生成恢复码',
     '退出登录': '退出登录',
 
+    // ===== 帖子搜索 =====
+    '搜索帖子…': '搜索帖子…',
+    '清除搜索': '清除搜索',
+    '请输入搜索关键词': '请输入搜索关键词',
+    '搜索关键词过长（最多 100 字）': '搜索关键词过长（最多 100 字）',
+    '没有找到相关帖子': '没有找到相关帖子',
+    '试试其他关键词，或检查是否有错别字': '试试其他关键词，或检查是否有错别字',
+
     // ===== SMTP 与邮箱验证 =====
     '邮件设置': '邮件设置',
     '启用邮件发送': '启用邮件发送',
@@ -783,6 +791,14 @@ const TRANSLATIONS = {
     '修改用户角色': 'Change User Role',
     '重新生成恢复码': 'Regenerate Recovery Codes',
     '退出登录': 'Logout',
+
+    // ===== 帖子搜索 =====
+    '搜索帖子…': 'Search posts…',
+    '清除搜索': 'Clear search',
+    '请输入搜索关键词': 'Please enter a search term',
+    '搜索关键词过长（最多 100 字）': 'Search term is too long (max 100 characters)',
+    '没有找到相关帖子': 'No matching posts found',
+    '试试其他关键词，或检查是否有错别字': 'Try different keywords, or check for typos',
 
     // ===== SMTP 与邮箱验证 =====
     '邮件设置': 'Email Settings',

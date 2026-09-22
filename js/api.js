@@ -73,6 +73,15 @@ const API = {
     return data;
   },
 
+  // 搜索帖子（标题与正文）
+  async searchPosts(keyword, page = 1, limit = 20) {
+    const data = await apiFetch(
+      '/posts/search?q=' + encodeURIComponent(keyword) + '&page=' + page + '&limit=' + limit
+    );
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
   async getPost(postId) {
     const data = await apiFetch('/posts/' + postId);
     if (data.error) throw new Error(data.error);
