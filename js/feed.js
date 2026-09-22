@@ -83,16 +83,8 @@ function renderFeed() {
           <div class="post-actions">
             <span>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              ${replyCount}
+              ${replyCount} 条回复
             </span>
-            <button class="action-report" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-              举报
-            </button>
-            ${currentUser && currentUser.id === p.user_id ? `<button class="action-delete" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              删除
-            </button>` : ''}
           </div>
           ${signatureHtml}
         </div>
@@ -195,27 +187,10 @@ function renderFeed() {
       });
     });
 
-    container.querySelectorAll('.action-report').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!currentUser) { showToast('请先登录', 'warning'); return; }
-        reportTargetPostId = this.dataset.postid;
-        document.getElementById('reportModal').classList.add('active');
-      });
-    });
-    container.querySelectorAll('.action-delete').forEach(btn => {
-      btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const ok = await showConfirm('确定要删除这条帖子吗？', {
-          title: '删除帖子', confirmText: '删除', danger: true,
-        });
-        if (!ok) return;
-        API.deletePost(this.dataset.postid).then(() => {
-          renderFeed();
-          renderStats();
-        }).catch(err => showToast('删除失败：' + err.message, 'error'));
-      });
-    });
+    // 卡片上不再放举报与删除按钮：这两个操作针对的是帖子内容本身，
+    // 放在卡片上容易被误解为对整张卡片操作，也容易误点。
+    // 它们统一放在帖子详情页，用户点进帖子后操作。
+    // （卡片的点击跳转绑定在上方，此处无需重复绑定。）
   }).catch(err => {
     container.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px 0;">加载失败：' + escapeHTML(err.message) +
       '</div>';
