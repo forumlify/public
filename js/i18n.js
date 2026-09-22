@@ -372,6 +372,17 @@ const TRANSLATIONS = {
     '重新生成恢复码': '重新生成恢复码',
     '退出登录': '退出登录',
 
+    // ===== 私信用户搜索 =====
+    '搜索用户名开始私信…': '搜索用户名开始私信…',
+    '搜索用户': '搜索用户',
+    '没有找到匹配的用户': '没有找到匹配的用户',
+    '点击发送私信': '点击发送私信',
+    '对方回复前还可发送': '对方回复前还可发送',
+    '条消息': '条消息',
+    '对方回复前无法继续发送，请等待对方回复': '对方回复前无法继续发送，请等待对方回复',
+    '搜索中…': '搜索中…',
+    '搜索失败：': '搜索失败：',
+
     // ===== 帖子搜索 =====
     '搜索帖子…': '搜索帖子…',
     '清除搜索': '清除搜索',
@@ -791,6 +802,17 @@ const TRANSLATIONS = {
     '修改用户角色': 'Change User Role',
     '重新生成恢复码': 'Regenerate Recovery Codes',
     '退出登录': 'Logout',
+
+    // ===== 私信用户搜索 =====
+    '搜索用户名开始私信…': 'Search users to start a chat…',
+    '搜索用户': 'Search users',
+    '没有找到匹配的用户': 'No matching users found',
+    '点击发送私信': 'Click to send a message',
+    '对方回复前还可发送': 'You can send',
+    '条消息': 'more messages before they reply',
+    '对方回复前无法继续发送，请等待对方回复': 'You cannot send more until they reply',
+    '搜索中…': 'Searching…',
+    '搜索失败：': 'Search failed: ',
 
     // ===== 帖子搜索 =====
     '搜索帖子…': 'Search posts…',

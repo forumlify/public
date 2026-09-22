@@ -480,6 +480,19 @@
         <h2 style="font-size:18px;margin:0;">✉️ 私信</h2>
         <span class="close" data-modal="messageListModal" style="font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;">&times;</span>
       </div>
+      <!-- 用户搜索：此前只能从对方主页点「私信」才能发起会话，
+           这里提供按用户名搜索并直接开聊的入口 -->
+      <div class="dm-search-wrap">
+        <div class="dm-search">
+          <input type="search" id="dmUserSearchInput" name="dm-user-search"
+                 placeholder="搜索用户名开始私信…" autocomplete="off"
+                 role="searchbox" aria-label="搜索用户"
+                 data-form-type="other" data-1p-ignore data-lpignore="true" />
+          <button type="button" id="dmUserSearchClear" class="dm-search-clear" title="清除搜索" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
       <div id="messageListContent" style="flex:1;overflow-y:auto;padding:0;">
         <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
       </div>
@@ -499,6 +512,8 @@
       <div id="chatMessages" style="flex:1;overflow-y:auto;padding:16px;min-height:300px;max-height:400px;">
         <div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>
       </div>
+      <!-- 对方回复前的发送条数提示，由 JS 控制显示 -->
+      <div id="chatLimitNote" class="dm-limit-note" style="display:none;"></div>
       <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;">
         <input type="text" id="chatInput" placeholder="输入消息..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--bg);color:var(--text);outline:none;" />
         <button onclick="sendMessage()" class="btn-primary" style="padding:8px 16px;">发送</button>

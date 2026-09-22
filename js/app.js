@@ -440,8 +440,123 @@ async function updateUnreadBadge() {
 
 function openMessageList() {
   document.getElementById('messageListModal').classList.add('active');
+  // 每次打开都回到会话列表状态，避免上次的搜索词残留
+  const searchInput = document.getElementById('dmUserSearchInput');
+  if (searchInput) searchInput.value = '';
+  syncDmSearchClear();
   renderMessageList();
 }
+
+// ============================================================
+//  ✉️ 私信：按用户名搜索并直接开聊
+// ============================================================
+// 此前只能进入对方个人主页再点「私信」，这里提供直接搜索的入口。
+
+function syncDmSearchClear() {
+  const input = document.getElementById('dmUserSearchInput');
+  const btn = document.getElementById('dmUserSearchClear');
+  if (input && btn) btn.style.display = input.value.trim() ? 'flex' : 'none';
+}
+
+async function renderDmUserSearch(keyword) {
+  const container = document.getElementById('messageListContent');
+  const kw = (keyword || '').trim();
+
+  if (!kw) {
+    renderMessageList();
+    return;
+  }
+
+  container.innerHTML = '<div class="dm-search-status">搜索中…</div>';
+
+  try {
+    const users = await API.searchUsers(kw, 10);
+
+    // 排除自己
+    const others = users.filter(u => !currentUser || u.id !== currentUser.id);
+
+    if (others.length === 0) {
+      container.innerHTML = '<div class="dm-search-status">没有找到匹配的用户</div>';
+      return;
+    }
+
+    let html = '';
+    others.forEach(u => {
+      const avatar = u.avatar_url ||
+        'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username) + '&background=6366f1&color=fff&size=64';
+      html += `
+        <div class="dm-user-row" data-user-id="${escapeHTML(u.id)}" data-username="${escapeHTML(u.username)}">
+          <img src="${escapeHTML(safeURL(avatar, { image: true }))}" alt="" />
+          <div class="dm-user-info">
+            <div class="dm-user-name">${escapeHTML(u.username)}</div>
+            <div class="dm-user-hint">${escapeHTML(u.signature || '点击发送私信')}</div>
+          </div>
+          <span class="dm-user-action">私信</span>
+        </div>
+      `;
+    });
+    container.innerHTML = sanitizeHTML(html);
+
+    container.querySelectorAll('.dm-user-row').forEach(row => {
+      row.addEventListener('click', async function() {
+        const userId = this.dataset.userId;
+        const username = this.dataset.username;
+        try {
+          const conv = await API.getOrCreateConversation(userId);
+          // 关闭搜索状态，进入聊天窗口
+          const searchInput = document.getElementById('dmUserSearchInput');
+          if (searchInput) searchInput.value = '';
+          syncDmSearchClear();
+          // openChat 需要三个参数：会话 ID、对方用户 ID、对方用户名
+          openChat(conv.id, userId, username);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '<div class="dm-search-status">搜索失败：' + escapeHTML(err.message) + '</div>';
+  }
+}
+
+// 绑定搜索框事件（防抖 300ms）
+(function initDmUserSearch() {
+  const input = document.getElementById('dmUserSearchInput');
+  const clearBtn = document.getElementById('dmUserSearchClear');
+  if (!input) return;
+
+  let timer = null;
+
+  function run() {
+    syncDmSearchClear();
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => renderDmUserSearch(input.value), 300);
+  }
+
+  input.addEventListener('input', run);
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (timer) clearTimeout(timer);
+      renderDmUserSearch(input.value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      input.value = '';
+      if (timer) clearTimeout(timer);
+      renderDmUserSearch('');
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      if (timer) clearTimeout(timer);
+      renderDmUserSearch('');
+      input.focus();
+    });
+  }
+})();
 
 function closeMessageList() {
   closeModal(document.getElementById('messageListModal'));
@@ -525,6 +640,38 @@ function closeChat() {
   updateUnreadBadge();
 }
 
+// 更新聊天窗口底部的发送限制提示。
+// 规则：对方从未回复时，我方最多先发 3 条（与后端
+// NEW_CONVERSATION_MESSAGE_LIMIT 对应）。对方回复过就不再限制，
+// 此时隐藏提示条。
+const DM_FIRST_ROUND_LIMIT = 3;
+
+function updateChatLimitNote(messages) {
+  const note = document.getElementById('chatLimitNote');
+  if (!note || !currentUser) return;
+
+  const mine = messages.filter(m => m.sender_id === currentUser.id).length;
+  const theirs = messages.filter(m => m.sender_id !== currentUser.id).length;
+
+  if (theirs > 0) {
+    // 对方已回复，限制解除
+    note.style.display = 'none';
+    return;
+  }
+
+  const remaining = Math.max(0, DM_FIRST_ROUND_LIMIT - mine);
+  note.style.display = 'block';
+  // 数字与文字分开放进不同元素：整句含动态数字时 i18n 匹配不到词典，
+  // 拆开后固定文案可被翻译。
+  if (remaining > 0) {
+    note.innerHTML = '<span>对方回复前还可发送</span> '
+      + '<strong>' + remaining + '</strong> '
+      + '<span>条消息</span>';
+  } else {
+    note.textContent = '对方回复前无法继续发送，请等待对方回复';
+  }
+}
+
 async function renderMessages(conversationId, silent = false) {
   const container = document.getElementById('chatMessages');
   if (!silent) {
@@ -533,6 +680,7 @@ async function renderMessages(conversationId, silent = false) {
 
   try {
     const messages = await API.getMessages(conversationId);
+    updateChatLimitNote(messages);
     if (messages.length === 0) {
       container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">还没有消息，打个招呼吧</div>';
       return;
@@ -579,7 +727,13 @@ async function sendMessage() {
       renderMessageList();
     }
   } catch (err) {
-    showToast('发送失败：' + err.message, 'error');
+    // 达到首轮发送上限时给出更明确的提示，而不是笼统的「发送失败」
+    if (/最多发送/.test(err.message)) {
+      showToast(err.message, 'warning');
+      renderMessages(currentConversationId, true);
+    } else {
+      showToast('发送失败：' + err.message, 'error');
+    }
   }
 }
 

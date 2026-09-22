@@ -272,6 +272,15 @@ const API = {
     return data || [];
   },
 
+  // 搜索用户（用于发起私信）。仅返回用户名、头像等公开信息。
+  async searchUsers(keyword, limit = 10) {
+    const data = await apiFetch(
+      '/users/search?q=' + encodeURIComponent(keyword) + '&limit=' + limit
+    );
+    if (data.error) throw new Error(data.error);
+    return data.data || [];
+  },
+
   async getOrCreateConversation(other_user_id) {
     const data = await apiFetch('/conversations', {
       method: 'POST',

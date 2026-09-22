@@ -1789,6 +1789,49 @@ app.delete('/api/admin/custom-css', auth, admin, async (req, res) => {
 //  私信系统
 // ============================================================
 
+// ============================================================
+//  私信系统
+// ============================================================
+
+// 防骚扰限制：对方尚未回复时，发起方最多先发这么多条消息。
+// 对方一旦回复过，限制永久解除。仅对「对方从未回复」的会话生效，
+// 因此已经正常交流过的会话不受影响。
+const NEW_CONVERSATION_MESSAGE_LIMIT = 3;
+
+// 搜索用户以便发起私信（公开信息：用户名与头像）
+// 仅返回用户名/头像/角色，不暴露邮箱等隐私字段。
+app.get('/api/users/search', async (req, res) => {
+  const raw = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+  if (raw.length === 0) {
+    return res.status(400).json({ error: '请输入搜索关键词' });
+  }
+  if (raw.length > 50) {
+    return res.status(400).json({ error: '搜索关键词过长（最多 50 字）' });
+  }
+
+  const limit = Math.min(Number(req.query.limit) || 10, 20);
+  const pattern = '%' + escapeLikePattern(raw) + '%';
+
+  try {
+    const r = await pool.query(
+      `SELECT id, username, avatar_url, role, signature
+       FROM users
+       WHERE username ILIKE $1
+       ORDER BY
+         -- 前缀匹配优先，其次按名字长度（更接近精确匹配）
+         CASE WHEN username ILIKE $2 THEN 0 ELSE 1 END,
+         LENGTH(username),
+         username
+       LIMIT $3`,
+      [pattern, escapeLikePattern(raw) + '%', limit]
+    );
+    res.json({ data: r.rows, query: raw });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 获取会话列表
 app.get('/api/conversations', auth, async (req, res) => {
   try {
@@ -1891,38 +1934,78 @@ app.post('/api/conversations/:id/messages', validateUuidId, auth, async (req, re
     return res.status(400).json({ error: '消息长度应为1到10000个字符' });
   }
 
+  let client;
   try {
-    const check = await pool.query(`
-      SELECT id FROM conversations
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // 取会话并加行锁：限制判定依赖「我方已发几条、对方是否回过」，
+    // 不加锁的话并发发送可以绕过计数。
+    const check = await client.query(`
+      SELECT id, user1_id, user2_id FROM conversations
       WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)
+      FOR UPDATE
     `, [conversationId, req.user.id]);
 
     if (check.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ error: '无权限访问此会话' });
     }
 
-    const r = await pool.query(`
+    // 防骚扰限制：对方尚未回复时，我方最多先发 NEW_CONVERSATION_MESSAGE_LIMIT 条。
+    // 对方一旦回复过，限制永久解除，之后不再计数。
+    const conv = check.rows[0];
+    const otherId = conv.user1_id === req.user.id ? conv.user2_id : conv.user1_id;
+
+    const stats = await client.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE sender_id = $2) AS mine,
+        COUNT(*) FILTER (WHERE sender_id = $3) AS theirs
+      FROM messages
+      WHERE conversation_id = $1
+    `, [conversationId, req.user.id, otherId]);
+
+    const mine = parseInt(stats.rows[0].mine || 0);
+    const theirs = parseInt(stats.rows[0].theirs || 0);
+
+    if (theirs === 0 && mine >= NEW_CONVERSATION_MESSAGE_LIMIT) {
+      await client.query('ROLLBACK');
+      return res.status(429).json({
+        error: `对方回复前最多发送 ${NEW_CONVERSATION_MESSAGE_LIMIT} 条消息，请等待对方回复`,
+        limit_reached: true,
+        limit: NEW_CONVERSATION_MESSAGE_LIMIT,
+      });
+    }
+
+    const r = await client.query(`
       INSERT INTO messages (conversation_id, sender_id, content)
       VALUES ($1, $2, $3)
       RETURNING *
     `, [conversationId, req.user.id, content.trim()]);
 
-    await pool.query(`
+    await client.query(`
       UPDATE conversations SET last_message_at = NOW()
       WHERE id = $1
     `, [conversationId]);
 
-    const userInfo = await pool.query(`
+    const userInfo = await client.query(`
       SELECT username, avatar_url FROM users WHERE id = $1
     `, [req.user.id]);
+
+    await client.query('COMMIT');
 
     res.json({
       ...r.rows[0],
       sender_username: userInfo.rows[0].username,
-      sender_avatar_url: userInfo.rows[0].avatar_url
+      sender_avatar_url: userInfo.rows[0].avatar_url,
+      // 告知前端剩余可发条数，便于在界面上提示（对方已回复时为 null）
+      remaining: theirs > 0 ? null : Math.max(0, NEW_CONVERSATION_MESSAGE_LIMIT - mine - 1),
     });
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: '发送失败，请稍后重试' });
+  } finally {
+    if (client) client.release();
   }
 });
 

@@ -3589,6 +3589,123 @@ select:disabled {
   color: var(--glass-text);
 }
 
+/* ============================================================
+   ✉️ 私信：用户搜索
+   ============================================================ */
+
+.dm-search-wrap {
+  padding: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.dm-search {
+  position: relative;
+}
+
+.dm-search input {
+  width: 100%;
+  box-sizing: border-box;
+  /* 右侧留出清除按钮的位置 */
+  padding-right: 34px !important;
+  margin-bottom: 0 !important;
+}
+
+.dm-search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--glass-text-light);
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease, color var(--dur-fast, 0.16s) ease;
+}
+
+.dm-search-clear:hover {
+  background: rgba(127, 127, 147, 0.18);
+  color: var(--glass-text);
+}
+
+/* 搜索结果条目 */
+.dm-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.dm-user-row:hover {
+  background: rgba(127, 127, 147, 0.08);
+}
+
+.dm-user-row img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--glass-border);
+  flex: none;
+}
+
+.dm-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dm-user-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--glass-text);
+  /* 过长的用户名截断而不是撑破布局 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-user-hint {
+  font-size: 12px;
+  color: var(--glass-text-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-user-row .dm-user-action {
+  flex: none;
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* 搜索状态提示 */
+.dm-search-status {
+  text-align: center;
+  color: var(--glass-text-light);
+  font-size: 13px;
+  padding: 28px 20px;
+}
+
+/* 会话中的限制提示条 */
+.dm-limit-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--glass-text-light);
+  padding: 8px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border-top: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 /* ===== 列表容器高度稳定 =====
    骨架屏按「理想内容」绘制，实际帖子往往更短，数据到达时容器高度会
    骤降，导致其下方的内容（分页控件、页脚）整体上跳——这就是首屏
