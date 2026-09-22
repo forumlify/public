@@ -872,9 +872,25 @@ svg {
   display: block;
   animation: slideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* 后退（浏览器返回键或返回按钮）时用反向动画。
+   原先只有 slideIn 一个方向，前进与后退都从右侧滑入，方向感是错的：
+   返回上一页时内容应该从左侧进来。由 JS 在 popstate 上打这个标记。 */
+.page-slide.active.slide-back {
+  animation: slideInBack 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
 @keyframes slideIn {
   from {
     transform: translateX(40px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slideInBack {
+  from {
+    transform: translateX(-40px);
     opacity: 0.6;
   }
   to {
@@ -3344,6 +3360,112 @@ select:disabled {
 }
 
 /* 搜索框、验证码等内嵌小输入框同样适用，无需单独处理 */
+
+/* ============================================================
+   💀 骨架屏
+   ------------------------------------------------------------
+   替代纯文字的「加载中...」：用与真实内容同构的灰块占位，让用户在
+   等待时就能预判版面结构，也避免内容出现时的布局跳动。
+
+   结构由 js/skeleton.js 生成，这里只负责外观与微光动画。
+   ============================================================ */
+
+.skeleton-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  margin-bottom: 12px;
+  /* 轻微模糊，暗示「内容正在成形」而非最终状态 */
+  opacity: 0.7;
+}
+
+/* 灰块：用渐变而非纯色，配合扫光动画 */
+.skeleton-line,
+.skeleton-avatar,
+.skeleton-thumb {
+  background: linear-gradient(
+    90deg,
+    rgba(127, 127, 147, 0.14) 25%,
+    rgba(127, 127, 147, 0.24) 37%,
+    rgba(127, 127, 147, 0.14) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeletonShimmer {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0 50%; }
+}
+
+.skeleton-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+/* 宽度按内容特征设定，避免每行一样长显得机械 */
+.skeleton-line.w-30 { width: 30%; }
+.skeleton-line.w-45 { width: 45%; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-80 { width: 80%; }
+.skeleton-line.w-100 { width: 100%; }
+
+/* 标题行比正文粗 */
+.skeleton-line.skeleton-title {
+  height: 16px;
+  margin: 10px 0 12px;
+}
+
+.skeleton-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.skeleton-thumb {
+  width: 120px;
+  height: 90px;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-thumbs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* 表格骨架（管理后台的用户 / 日志列表） */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.skeleton-row .skeleton-line {
+  margin-bottom: 0;
+}
+
+/* 减少动画时停掉扫光，只保留静态灰块 */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line,
+  .skeleton-avatar,
+  .skeleton-thumb {
+    animation: none !important;
+    background: rgba(127, 127, 147, 0.18);
+  }
+}
 
 /* ============================================================
    🎞️ 滚动驱动动画

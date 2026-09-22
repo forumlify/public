@@ -16,10 +16,15 @@ function switchToPost(postId) {
 function showPostPage(postId) {
   document.getElementById('app').style.display = 'none';
   document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out');
+    el.classList.remove('active', 'slide-out', 'slide-back');
   });
   const el = document.getElementById('pagePost');
+  // 后退导航时用反向滑入，与主动进入区分
+  if (typeof window.isNavigatingBack === 'function' && window.isNavigatingBack()) {
+    el.classList.add('slide-back');
+  }
   el.classList.add('active');
+  // 强制重排以重放动画（同一元素连续切换时需要）
   el.style.animation = 'none';
   void el.offsetHeight;
   el.style.animation = '';
@@ -30,7 +35,7 @@ function showPostPage(postId) {
 async function renderPostDetail(postId) {
   const container = document.getElementById('postDetailContent');
   const replyArea = document.getElementById('replyArea');
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
+  container.innerHTML = Skeleton.postDetail() + Skeleton.replyItem() + Skeleton.replyItem();
   replyArea.style.display = 'none';
 
   try {

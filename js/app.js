@@ -252,7 +252,7 @@ function switchPage(page, param) {
 
   document.getElementById('app').style.display = 'none';
   document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out');
+    el.classList.remove('active', 'slide-out', 'slide-back');
   });
 
   const customContainer = document.getElementById('customPageContainer');
@@ -278,6 +278,11 @@ function switchPage(page, param) {
   };
   const el = document.getElementById(pageMap[page]);
   if (el) {
+    // 后退导航时用反向滑入：返回上一页时内容应从左侧进来，
+    // 而主动点击进入是从右侧进来。
+    if (typeof window.isNavigatingBack === 'function' && window.isNavigatingBack()) {
+      el.classList.add('slide-back');
+    }
     el.classList.add('active');
     el.style.animation = 'none';
     void el.offsetHeight;
@@ -607,7 +612,7 @@ function renderCustomPagesNav() {
 function showCustomPage(pageName) {
   document.getElementById('app').style.display = 'none';
   document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out');
+    el.classList.remove('active', 'slide-out', 'slide-back');
   });
 
   let container = document.getElementById('customPageContainer');
@@ -1509,7 +1514,15 @@ async function init() {
   });
 
   // ===== 前进后退 =====
+  // popstate 由浏览器前进/后退触发。这类切换用反向滑入动画，
+  // 与主动点击进入页面区分开，让用户感知到「我是往回走的」。
+  let navigatingBack = false;
   window.addEventListener('popstate', function(e) {
+    navigatingBack = true;
+    // 标记只对紧接着的一次切换生效，渲染完成后立即清除，
+    // 避免影响后续的主动跳转。
+    setTimeout(() => { navigatingBack = false; }, 0);
+
     const state = e.state || {};
     const page = state.page || 'feed';
     const postId = state.postId || null;
@@ -1525,6 +1538,9 @@ async function init() {
       switchPage(page);
     }
   });
+
+  // 供各页面切换函数查询当前是否为后退导航
+  window.isNavigatingBack = () => navigatingBack;
 
   // ===== 私信按钮 =====
   const messageBtn = document.getElementById('messageBtn');

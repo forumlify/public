@@ -4,7 +4,7 @@
 
 async function renderUserProfile(username) {
   const container = document.getElementById('userProfileContent');
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
+  container.innerHTML = Skeleton.userProfile();
 
   try {
     // 使用公开接口 /users/profile/:username
@@ -80,9 +80,13 @@ async function renderUserProfile(username) {
 function showUserPage(username) {
   document.getElementById('app').style.display = 'none';
   document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out');
+    el.classList.remove('active', 'slide-out', 'slide-back');
   });
   const el = document.getElementById('pageUser');
+  // 后退导航时用反向滑入，与主动进入区分
+  if (typeof window.isNavigatingBack === 'function' && window.isNavigatingBack()) {
+    el.classList.add('slide-back');
+  }
   el.classList.add('active');
   el.style.animation = 'none';
   void el.offsetHeight;

@@ -20,8 +20,14 @@ function scrollFeedToTop() {
 
 function renderFeed() {
   const container = document.getElementById('postList');
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
+  // 骨架屏只在首次加载时显示。翻页时列表已有内容，再画一遍骨架会
+  // 造成明显的闪动，反而比直接留白更糟。
+  const isFirstLoad = container.dataset.loaded !== '1';
+  container.innerHTML = isFirstLoad
+    ? Skeleton.postList(4)
+    : '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
   API.getPosts(currentSort, currentPageNum, PAGE_SIZE).then(result => {
+    container.dataset.loaded = '1';
     const posts = result.data || [];
     const pagination = result.pagination || { total: 0, totalPages: 1, page: 1 };
     totalPages = pagination.totalPages || 1;

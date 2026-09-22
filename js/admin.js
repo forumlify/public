@@ -73,7 +73,7 @@ let usersSearchKeyword = '';
 
 function renderAdminUsers(page = 1, search = '') {
   const container = document.getElementById('adminContent');
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px 0;">加载中...</div>';
+  container.innerHTML = Skeleton.tableRows(6);
 
   currentUsersPage = page;
   usersSearchKeyword = search;
@@ -262,8 +262,8 @@ function renderAdminUsers(page = 1, search = '') {
 
 function renderAdminLogs(page = 1) {
   const container = document.getElementById('adminContent');
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px 0;">加载中...</div>';
-  
+  container.innerHTML = Skeleton.tableRows(6);
+
   API.getEventLogs(page, 20).then(result => {
     const logs = result.data || [];
     const pagination = result.pagination || { total: 0, totalPages: 1, page: 1 };
