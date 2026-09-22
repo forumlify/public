@@ -360,3 +360,23 @@ BEGIN
       ON posts USING gin (content gin_trgm_ops);
   END IF;
 END $$;
+
+-- ============================================================
+--  用户屏蔽（对应 migrations/006_user_blocks.sql）
+-- ------------------------------------------------------------
+--  单向关系：blocker 屏蔽 blocked 之后，blocked 不能给 blocker 发私信，
+--  且 blocker 在帖子与回复中不再看到 blocked 的内容。
+--  被屏蔽方不会收到任何提示。
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS user_blocks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (blocker_id, blocked_id),
+  CHECK (blocker_id <> blocked_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocker ON user_blocks(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked ON user_blocks(blocked_id);

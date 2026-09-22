@@ -281,6 +281,33 @@ const API = {
     return data.data || [];
   },
 
+  // ============================================================
+  //  用户屏蔽
+  // ============================================================
+  async blockUser(userId) {
+    const data = await apiFetch('/users/' + userId + '/block', { method: 'POST' });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async unblockUser(userId) {
+    const data = await apiFetch('/users/' + userId + '/block', { method: 'DELETE' });
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
+  async getBlockedUsers() {
+    const data = await apiFetch('/blocks');
+    if (data.error) throw new Error(data.error);
+    return data.data || [];
+  },
+
+  async getBlockStatus(userId) {
+    const data = await apiFetch('/users/' + userId + '/block-status');
+    if (data.error) throw new Error(data.error);
+    return data;
+  },
+
   async getOrCreateConversation(other_user_id) {
     const data = await apiFetch('/conversations', {
       method: 'POST',

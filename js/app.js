@@ -440,10 +440,14 @@ async function updateUnreadBadge() {
 
 function openMessageList() {
   document.getElementById('messageListModal').classList.add('active');
-  // 每次打开都回到会话列表状态，避免上次的搜索词残留
+  // 每次打开都回到会话列表状态，避免上次的搜索词或「已屏蔽」视图残留
   const searchInput = document.getElementById('dmUserSearchInput');
   if (searchInput) searchInput.value = '';
   syncDmSearchClear();
+  const tabConv = document.getElementById('dmTabConversations');
+  const tabBlocked = document.getElementById('dmTabBlocked');
+  if (tabConv) tabConv.classList.add('active');
+  if (tabBlocked) tabBlocked.classList.remove('active');
   renderMessageList();
 }
 
@@ -491,11 +495,37 @@ async function renderDmUserSearch(keyword) {
             <div class="dm-user-name">${escapeHTML(u.username)}</div>
             <div class="dm-user-hint">${escapeHTML(u.signature || '点击发送私信')}</div>
           </div>
+          <button type="button" class="dm-user-block" data-user-id="${escapeHTML(u.id)}"
+                  data-username="${escapeHTML(u.username)}" title="屏蔽该用户">屏蔽</button>
           <span class="dm-user-action">私信</span>
         </div>
       `;
     });
     container.innerHTML = sanitizeHTML(html);
+
+    // 屏蔽按钮：需与行点击区分开，因此阻止冒泡
+    container.querySelectorAll('.dm-user-block').forEach(btn => {
+      btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        const userId = this.dataset.userId;
+        const username = this.dataset.username;
+
+        const ok = await showConfirm(
+          `确定屏蔽「${username}」？屏蔽后你不再看到 TA 的帖子和回复，TA 也无法给你发私信。`,
+          { title: '屏蔽用户', confirmText: '屏蔽', danger: true }
+        );
+        if (!ok) return;
+
+        try {
+          await API.blockUser(userId);
+          showToast('已屏蔽该用户', 'success');
+          // 屏蔽后该用户不应再出现于搜索结果中，重新执行一次搜索
+          renderDmUserSearch(document.getElementById('dmUserSearchInput').value);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    });
 
     container.querySelectorAll('.dm-user-row').forEach(row => {
       row.addEventListener('click', async function() {
@@ -556,6 +586,86 @@ async function renderDmUserSearch(keyword) {
       input.focus();
     });
   }
+})();
+
+// 渲染「已屏蔽」列表
+async function renderBlockedUsers() {
+  const container = document.getElementById('messageListContent');
+  container.innerHTML = '<div class="dm-search-status">加载中…</div>';
+
+  try {
+    const users = await API.getBlockedUsers();
+    if (users.length === 0) {
+      container.innerHTML = '<div class="dm-search-status">还没有屏蔽任何人</div>';
+      return;
+    }
+
+    let html = '';
+    users.forEach(u => {
+      const avatar = u.avatar_url ||
+        'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username) + '&background=6366f1&color=fff&size=64';
+      html += `
+        <div class="dm-user-row" style="cursor:default;">
+          <img src="${escapeHTML(safeURL(avatar, { image: true }))}" alt="" />
+          <div class="dm-user-info">
+            <div class="dm-user-name">${escapeHTML(u.username)}</div>
+            <div class="dm-user-hint">屏蔽于 ${u.created_at ? new Date(u.created_at).toLocaleDateString('zh-CN') : '未知'}</div>
+          </div>
+          <button type="button" class="dm-user-unblock"
+                  data-user-id="${escapeHTML(u.id)}" data-username="${escapeHTML(u.username)}">解除屏蔽</button>
+        </div>
+      `;
+    });
+    container.innerHTML = sanitizeHTML(html);
+
+    container.querySelectorAll('.dm-user-unblock').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        const userId = this.dataset.userId;
+        const username = this.dataset.username;
+
+        const ok = await showConfirm(
+          `解除对「${username}」的屏蔽？解除后你将继续看到 TA 的帖子和回复，TA 也能再次给你发私信。`,
+          { title: '解除屏蔽', confirmText: '解除屏蔽' }
+        );
+        if (!ok) return;
+
+        try {
+          await API.unblockUser(userId);
+          showToast('已解除屏蔽', 'success');
+          renderBlockedUsers();
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '<div class="dm-search-status">加载失败</div>';
+  }
+}
+
+// 视图切换：会话 / 已屏蔽
+function switchDmView(view) {
+  const tabConv = document.getElementById('dmTabConversations');
+  const tabBlocked = document.getElementById('dmTabBlocked');
+  if (tabConv) tabConv.classList.toggle('active', view === 'conversations');
+  if (tabBlocked) tabBlocked.classList.toggle('active', view === 'blocked');
+
+  // 切到已屏蔽时清空搜索框，避免搜索状态与列表视图混淆
+  const input = document.getElementById('dmUserSearchInput');
+  if (view === 'blocked' && input) {
+    input.value = '';
+    syncDmSearchClear();
+  }
+
+  if (view === 'blocked') renderBlockedUsers();
+  else renderMessageList();
+}
+
+(function initDmTabs() {
+  const tabConv = document.getElementById('dmTabConversations');
+  const tabBlocked = document.getElementById('dmTabBlocked');
+  if (tabConv) tabConv.addEventListener('click', () => switchDmView('conversations'));
+  if (tabBlocked) tabBlocked.addEventListener('click', () => switchDmView('blocked'));
 })();
 
 function closeMessageList() {

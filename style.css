@@ -3706,6 +3706,79 @@ select:disabled {
   border-top: 1px solid rgba(245, 158, 11, 0.25);
 }
 
+/* 会话 / 已屏蔽 视图切换 */
+.dm-view-switch {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.dm-view-switch button {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--glass-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease, color var(--dur-fast, 0.16s) ease;
+}
+
+.dm-view-switch button.active {
+  background: var(--glass-bg);
+  color: var(--glass-text);
+  font-weight: 600;
+}
+
+.dm-view-switch button:hover:not(.active) {
+  background: rgba(127, 127, 147, 0.08);
+}
+
+/* 搜索结果里的屏蔽按钮，位于「私信」左侧 */
+.dm-user-block {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--glass-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease, color var(--dur-fast, 0.16s) ease,
+              border-color var(--dur-fast, 0.16s) ease;
+}
+
+.dm-user-block:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* 已屏蔽列表中的解除按钮 */
+.dm-user-unblock {
+  flex: none;
+  padding: 4px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--glass-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.16s) ease, color var(--dur-fast, 0.16s) ease;
+}
+
+.dm-user-unblock:hover {
+  background: rgba(127, 127, 147, 0.12);
+  color: var(--glass-text);
+}
+
+/* 用户主页上的「解除屏蔽」按钮——用更中性的外观，与「屏蔽」区分 */
+#blockBtn.is-blocked {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 /* ===== 列表容器高度稳定 =====
    骨架屏按「理想内容」绘制，实际帖子往往更短，数据到达时容器高度会
    骤降，导致其下方的内容（分页控件、页脚）整体上跳——这就是首屏

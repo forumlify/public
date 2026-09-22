@@ -298,6 +298,40 @@ const admin = async (req, res, next) => {
   }
 };
 
+// 可选认证：用于公开接口。已登录则解析出 req.user，未登录或令牌无效
+// 都直接放行（不报错）。帖子列表等公开接口借此在登录时应用屏蔽过滤，
+// 未登录访客则看到全部内容。
+const optionalAuth = async (req, res, next) => {
+  const header = req.headers.authorization;
+  const token = header && header.split(' ')[1];
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const current = await pool.query(
+      'SELECT token_version FROM users WHERE id = $1',
+      [decoded.id]
+    );
+    const tokenVersion = decoded.token_version ?? 0;
+    if (current.rows[0] && tokenVersion === current.rows[0].token_version) {
+      req.user = decoded;
+    }
+  } catch (err) {
+    // 令牌无效时按未登录处理，不打断公开接口
+  }
+  next();
+};
+
+// 拼装「排除被我屏蔽的用户」这一 SQL 片段。
+// 未登录时返回空条件，不影响公开访问。
+function blockedUserFilter(req, params, column = 'p.user_id') {
+  if (!req.user) return '';
+  params.push(req.user.id);
+  return ` AND ${column} NOT IN (
+    SELECT blocked_id FROM user_blocks WHERE blocker_id = $${params.length}
+  )`;
+}
+
 // ============================================================
 //  创建通知（内部函数）
 // ============================================================
@@ -1113,7 +1147,7 @@ app.put('/api/users/:id/email', validateUuidId, auth, async (req, res) => {
 // ============================================================
 
 // 获取帖子列表（支持分页和用户筛选，置顶优先）
-app.get('/api/posts', async (req, res) => {
+app.get('/api/posts', optionalAuth, async (req, res) => {
   const sort = req.query.sort === 'hot' ? 'updated_at' : 'created_at';
   const pagination = parsePagination(req.query);
   if (!pagination) return res.status(400).json({ error: '分页参数无效' });
@@ -1123,6 +1157,22 @@ app.get('/api/posts', async (req, res) => {
   }
 
   try {
+    // 条件统一构造，保证 count 与主查询用同一套过滤，
+    // 否则分页总数会与实际结果对不上。
+    const params = [];
+    const conditions = [];
+
+    if (req.query.user_id) {
+      params.push(req.query.user_id);
+      conditions.push(`p.user_id = $${params.length}`);
+    }
+
+    // 登录状态下排除被我屏蔽的用户的内容
+    const blockFilter = blockedUserFilter(req, params, 'p.user_id');
+    if (blockFilter) conditions.push(blockFilter.replace(/^\s*AND\s*/, ''));
+
+    const whereClause = conditions.length ? ' WHERE ' + conditions.join(' AND ') : '';
+
     let query = `
       SELECT
         p.*,
@@ -1132,21 +1182,13 @@ app.get('/api/posts', async (req, res) => {
         (SELECT COUNT(*) FROM replies WHERE post_id = p.id) as reply_count
       FROM posts p
       JOIN users u ON p.user_id = u.id
+      ${whereClause}
     `;
-    const params = [];
 
-    if (req.query.user_id) {
-      query += ' WHERE p.user_id = $1';
-      params.push(req.query.user_id);
-    }
-
-    let countQuery = `
-      SELECT COUNT(*) as total FROM posts p
-    `;
-    if (req.query.user_id) {
-      countQuery += ' WHERE p.user_id = $1';
-    }
-    const countResult = await pool.query(countQuery, req.query.user_id ? [req.query.user_id] : []);
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM posts p${whereClause}`,
+      params
+    );
     const total = parseInt(countResult.rows[0]?.total || 0);
 
     query += ` ORDER BY p.is_pinned DESC, p.pinned_at DESC NULLS LAST, ${sort} DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
@@ -1179,7 +1221,7 @@ function escapeLikePattern(value) {
 }
 
 // 注意：本路由必须声明在 /api/posts/:id 之前，否则 search 会被当作 id
-app.get('/api/posts/search', async (req, res) => {
+app.get('/api/posts/search', optionalAuth, async (req, res) => {
   const raw = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
   if (raw.length === 0) {
@@ -1196,10 +1238,19 @@ app.get('/api/posts/search', async (req, res) => {
   const pattern = '%' + escapeLikePattern(raw) + '%';
 
   try {
+    // 关键词条件必须用括号包住：它与屏蔽过滤之间是 AND 关系，
+    // 若不加括号会因为 AND 优先级高于 OR 而导致过滤失效。
+    const params = [pattern];
+    const conditions = ['(p.title ILIKE $1 OR p.content ILIKE $1)'];
+
+    const blockFilter = blockedUserFilter(req, params, 'p.user_id');
+    if (blockFilter) conditions.push(blockFilter.replace(/^\s*AND\s*/, ''));
+
+    const whereClause = ' WHERE ' + conditions.join(' AND ');
+
     const countResult = await pool.query(
-      `SELECT COUNT(*) AS total FROM posts p
-       WHERE p.title ILIKE $1 OR p.content ILIKE $1`,
-      [pattern]
+      `SELECT COUNT(*) AS total FROM posts p${whereClause}`,
+      params
     );
     const total = parseInt(countResult.rows[0]?.total || 0);
 
@@ -1212,10 +1263,10 @@ app.get('/api/posts/search', async (req, res) => {
          (SELECT COUNT(*) FROM replies WHERE post_id = p.id) AS reply_count
        FROM posts p
        JOIN users u ON p.user_id = u.id
-       WHERE p.title ILIKE $1 OR p.content ILIKE $1
+       ${whereClause}
        ORDER BY p.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [pattern, limit, offset]
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
     );
 
     res.json({
@@ -1234,7 +1285,7 @@ app.get('/api/posts/search', async (req, res) => {
 });
 
 // 获取单个帖子
-app.get('/api/posts/:id', validateUuidId, async (req, res) => {
+app.get('/api/posts/:id', optionalAuth, validateUuidId, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT p.*, u.username, u.avatar_url, u.signature
@@ -1380,15 +1431,19 @@ app.put('/api/posts/:id/pin', validateUuidId, auth, admin, async (req, res) => {
 // ============================================================
 
 // 获取帖子回复列表
-app.get('/api/posts/:id/replies', validateUuidId, async (req, res) => {
+app.get('/api/posts/:id/replies', optionalAuth, validateUuidId, async (req, res) => {
   try {
+    // 登录状态下隐藏被我屏蔽的用户的回复
+    const params = [req.params.id];
+    const blockFilter = blockedUserFilter(req, params, 'r.user_id');
+
     const r = await pool.query(
       `SELECT r.*, u.username, u.avatar_url
        FROM replies r
        JOIN users u ON r.user_id = u.id
-       WHERE r.post_id = $1
+       WHERE r.post_id = $1${blockFilter}
        ORDER BY r.created_at ASC`,
-      [req.params.id]
+      params
     );
     res.json(r.rows);
   } catch (err) {
@@ -1786,8 +1841,83 @@ app.delete('/api/admin/custom-css', auth, admin, async (req, res) => {
 });
 
 // ============================================================
-//  私信系统
+//  用户屏蔽
 // ============================================================
+// 单向关系。屏蔽后：
+//   - 被屏蔽方不能再给屏蔽方发私信（含已有会话）
+//   - 屏蔽方在帖子列表、详情与回复中不再看到被屏蔽方的内容
+// 被屏蔽方不会收到任何提示，也不影响其浏览屏蔽方的公开内容。
+
+app.post('/api/users/:id/block', validateUuidId, auth, async (req, res) => {
+  const targetId = req.params.id;
+
+  if (targetId === req.user.id) {
+    return res.status(400).json({ error: '不能屏蔽自己' });
+  }
+
+  try {
+    const target = await pool.query('SELECT id FROM users WHERE id = $1', [targetId]);
+    if (target.rows.length === 0) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    await pool.query(
+      `INSERT INTO user_blocks (blocker_id, blocked_id) VALUES ($1, $2)
+       ON CONFLICT (blocker_id, blocked_id) DO NOTHING`,
+      [req.user.id, targetId]
+    );
+    res.json({ success: true, blocked: true });
+  } catch (err) {
+    res.status(500).json({ error: '操作失败，请稍后重试' });
+  }
+});
+
+app.delete('/api/users/:id/block', validateUuidId, auth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
+      [req.user.id, req.params.id]
+    );
+    res.json({ success: true, blocked: false });
+  } catch (err) {
+    res.status(500).json({ error: '操作失败，请稍后重试' });
+  }
+});
+
+// 我屏蔽了谁
+app.get('/api/blocks', auth, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT u.id, u.username, u.avatar_url, b.created_at
+       FROM user_blocks b
+       JOIN users u ON u.id = b.blocked_id
+       WHERE b.blocker_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ data: r.rows });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 查询与某用户的屏蔽关系（双向）。后者用于在私信界面给出准确原因。
+app.get('/api/users/:id/block-status', validateUuidId, auth, async (req, res) => {
+  if (req.params.id === req.user.id) {
+    return res.json({ blocked_by_me: false, blocked_me: false, self: true });
+  }
+  try {
+    const r = await pool.query(
+      `SELECT
+         EXISTS(SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2) AS blocked_by_me,
+         EXISTS(SELECT 1 FROM user_blocks WHERE blocker_id = $2 AND blocked_id = $1) AS blocked_me`,
+      [req.user.id, req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
 
 // ============================================================
 //  私信系统
@@ -1800,7 +1930,8 @@ const NEW_CONVERSATION_MESSAGE_LIMIT = 3;
 
 // 搜索用户以便发起私信（公开信息：用户名与头像）
 // 仅返回用户名/头像/角色，不暴露邮箱等隐私字段。
-app.get('/api/users/search', async (req, res) => {
+// 未登录时也能搜索（用于浏览用户），登录时会排除自己已屏蔽的人。
+app.get('/api/users/search', optionalAuth, async (req, res) => {
   const raw = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
   if (raw.length === 0) {
@@ -1812,19 +1943,32 @@ app.get('/api/users/search', async (req, res) => {
 
   const limit = Math.min(Number(req.query.limit) || 10, 20);
   const pattern = '%' + escapeLikePattern(raw) + '%';
+  const params = [pattern, escapeLikePattern(raw) + '%'];
+
+  // 已屏蔽的用户不再出现在搜索结果里——否则屏蔽后仍能从私信面板
+  // 找到对方，与「不再看到 TA 的内容」相矛盾。
+  let blockFilter = '';
+  if (req.user) {
+    params.push(req.user.id);
+    blockFilter = ` AND id NOT IN (
+      SELECT blocked_id FROM user_blocks WHERE blocker_id = $${params.length}
+    )`;
+  }
+
+  params.push(limit);
 
   try {
     const r = await pool.query(
       `SELECT id, username, avatar_url, role, signature
        FROM users
-       WHERE username ILIKE $1
+       WHERE username ILIKE $1${blockFilter}
        ORDER BY
          -- 前缀匹配优先，其次按名字长度（更接近精确匹配）
          CASE WHEN username ILIKE $2 THEN 0 ELSE 1 END,
          LENGTH(username),
          username
-       LIMIT $3`,
-      [pattern, escapeLikePattern(raw) + '%', limit]
+       LIMIT $${params.length}`,
+      params
     );
     res.json({ data: r.rows, query: raw });
   } catch (err) {
@@ -1873,6 +2017,15 @@ app.post('/api/conversations', auth, async (req, res) => {
     const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [other_user_id]);
     if (userCheck.rows.length === 0) {
       return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 对方屏蔽了我则不允许发起会话。提示保持中性。
+    const blocked = await pool.query(
+      'SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
+      [other_user_id, req.user.id]
+    );
+    if (blocked.rows.length > 0) {
+      return res.status(403).json({ error: '无法向该用户发起私信' });
     }
 
     const r = await pool.query(`
@@ -1956,6 +2109,17 @@ app.post('/api/conversations/:id/messages', validateUuidId, auth, async (req, re
     // 对方一旦回复过，限制永久解除，之后不再计数。
     const conv = check.rows[0];
     const otherId = conv.user1_id === req.user.id ? conv.user2_id : conv.user1_id;
+
+    // 屏蔽检查：对方屏蔽了我则不能发送。提示保持中性，
+    // 不透露「你被屏蔽了」这一事实。
+    const blocked = await client.query(
+      'SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2',
+      [otherId, req.user.id]
+    );
+    if (blocked.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: '无法向该用户发送消息' });
+    }
 
     const stats = await client.query(`
       SELECT
