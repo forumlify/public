@@ -6,7 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const { rateLimit } = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
@@ -83,23 +83,43 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json({ error: '请求过于频繁，请稍后重试' }),
 });
-const authLimiter = rateLimit({
+// Per-IP bucket — default keyGenerator (IP only). Independent of any value
+// the client puts in the body, so it can't be bypassed by rotating account.
+const authIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skipSuccessfulRequests: true,
-  keyGenerator: (req, res) => {
-    const account = String((req.body && (req.body.email || req.body.username)) || '').trim().toLowerCase();
-    return account ? `${ipKeyGenerator(req, res)}:${account}` : ipKeyGenerator(req, res);
-  },
   handler: (req, res) => res.status(429).json({ error: '尝试次数过多，请稍后重试' }),
 });
 
+function authAccountKey(req) {
+  return String((req.body && (req.body.email || req.body.username)) || '').trim().toLowerCase();
+}
+
+// Per-account bucket — independent of source IP, so spreading attempts
+// across many IPs against one account is still capped. Needs req.body, so
+// it must be mounted after the body parsers. Requests with no usable
+// account value skip this limiter; authIpLimiter above still applies to them.
+const authAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  skip: (req) => !authAccountKey(req),
+  keyGenerator: authAccountKey,
+  handler: (req, res) => res.status(429).json({ error: '尝试次数过多，请稍后重试' }),
+});
+
+const AUTH_PATHS = ['/api/auth/login', '/api/auth/register', '/api/auth/reset-password'];
+
 app.use('/api', apiLimiter);
-app.use(['/api/auth/login', '/api/auth/register', '/api/auth/reset-password'], authLimiter);
+app.use(AUTH_PATHS, authIpLimiter);
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+app.use(AUTH_PATHS, authAccountLimiter);
 
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
