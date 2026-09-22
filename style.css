@@ -1938,6 +1938,16 @@ a.btn-secondary {
 
 /* ============================================================
    帖子列表 —— 内容截断（纯 CSS）
+   ------------------------------------------------------------
+   目标：无论帖子多长、标题多长、带多少张图，列表里每张卡片的高度
+   都尽量接近，避免某一条把整列撑得参差不齐。
+
+   三处限制：
+   - 标题 2 行：原先完全没有限制，长标题能占 6 行、把卡片撑高 70px
+   - 正文 3 行：原有规则，保留
+   - 图片最多显示 3 张：更靠后的折叠为「+N」，由 JS 负责
+
+   注意这些规则只作用于 #feed（列表页），帖子详情页不受影响。
    ============================================================ */
 
 #feed .post-content {
@@ -1948,6 +1958,62 @@ a.btn-secondary {
   text-overflow: ellipsis;
   max-height: none;
   line-height: 1.7;
+}
+
+/* 标题超过 2 行即截断。不加这条时，一条长标题能把卡片撑高 70px，
+   与相邻卡片明显不齐。 */
+#feed .post-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 长单词或连续串也要能断行，否则会横向溢出 */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 正文里的超长链接同理 */
+#feed .post-content {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 列表页隐藏签名：签名长度不一，是卡片高度差异的主要来源之一，
+   而它在列表里并不承担信息价值，放在详情页展示更合适。 */
+#feed .post-signature {
+  display: none;
+}
+
+/* ===== 列表页的图片折叠 ===== */
+
+/* 容器需为定位上下文，好让「+N」叠在缩略图组上 */
+#feed .post-images {
+  position: relative;
+}
+
+/* 列表页缩略图统一尺寸。取 120×90 是为了让带图卡片的总高度
+   尽量接近无图卡片，避免列表里出现忽高忽低的落差；
+   单张 200px 的原限制在 3 张并排时也会把卡片撑高。 */
+#feed .post-image {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+}
+
+/* 剩余图片计数，叠在缩略图组右侧 */
+#feed .post-image-more {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  pointer-events: none;
 }
 
 /* ============================================================

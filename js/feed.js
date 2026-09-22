@@ -34,12 +34,23 @@ function renderFeed() {
         'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) +
         '&background=6366f1&color=fff&size=64';
       const time = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
+      // 列表里最多展示 3 张图，其余折叠为「+N」。
+      // 附件上限是 6 张，若全部铺开会把卡片撑得很高，且与相邻卡片不齐。
       let imagesHtml = '';
       if (p.images && p.images.length > 0) {
+        const MAX_THUMBS = 3;
+        const shown = p.images.slice(0, MAX_THUMBS);
+        const rest = p.images.length - shown.length;
+
         imagesHtml = '<div class="post-images">';
-        p.images.forEach(img => {
-          imagesHtml += '<img src="' + escapeHTML(safeURL(img, { image: true })) + '" class="post-image" style="cursor:pointer;" />';
+        shown.forEach(img => {
+          imagesHtml += '<img src="' + escapeHTML(safeURL(img, { image: true })) +
+            '" class="post-image" style="cursor:pointer;" />';
         });
+        // 多于 3 张时，在末张右下角叠加剩余数量
+        if (rest > 0) {
+          imagesHtml += '<span class="post-image-more">+' + rest + '</span>';
+        }
         imagesHtml += '</div>';
       }
       const replyCount = p.reply_count || 0;
@@ -51,7 +62,7 @@ function renderFeed() {
       if (p.signature) {
         const sigContent = renderMarkdown(p.signature);
         signatureHtml = `
-          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
+          <div class="post-signature" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
             ${sigContent}
           </div>
         `;
