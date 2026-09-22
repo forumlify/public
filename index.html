@@ -102,7 +102,16 @@
           <button class="tab" data-sort="hot">最新回复</button>
         </div>
         <div class="feed-search">
-          <input type="search" id="postSearchInput" placeholder="搜索帖子…" autocomplete="off" />
+          <!-- 防止密码管理器误填：Chrome 等对 autocomplete="off" 常忽略，
+               因此叠加多重标识——语义化的 role/type、不易被判定为账号
+               字段的 name，以及 1Password / LastPass 识别的 data 属性。
+               同时把三个含密码的模态框改成真正的 <form>，让密码管理器
+               有明确的表单边界，不再靠启发式猜测波及搜索框。 -->
+          <input type="search" id="postSearchInput" name="post-search-query"
+                 placeholder="搜索帖子…" autocomplete="off" autocorrect="off"
+                 autocapitalize="off" spellcheck="false"
+                 role="searchbox" aria-label="搜索帖子"
+                 data-form-type="other" data-1p-ignore data-lpignore="true" />
           <button id="postSearchClear" class="feed-search-clear" type="button" title="清除搜索" style="display:none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -384,12 +393,18 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </span>
       <h2 style="margin-bottom:16px;">登录</h2>
-      <input type="email" id="loginEmail" placeholder="邮箱" />
-      <input type="password" id="loginPassword" placeholder="密码" />
-      <div style="text-align:center;margin-top:8px;">
-        <a href="#" id="forgotPasswordLink" style="color:var(--primary);font-size:13px;text-decoration:none;">忘记密码？</a>
-      </div>
-      <button id="loginSubmit" class="btn-primary" style="width:100%;margin-top:8px;">登录</button>
+      <!-- 用真正的 form 包裹：页面此前完全没有 form 标签，密码管理器
+           找不到表单边界，只能靠启发式猜测，会把页面上的其他文本框
+           （如首页搜索框）也当作账号字段填入。
+           autocomplete 采用标准值，帮助密码管理器准确定位。 -->
+      <form id="loginForm" autocomplete="on">
+        <input type="email" id="loginEmail" name="email" placeholder="邮箱" autocomplete="username" />
+        <input type="password" id="loginPassword" name="password" placeholder="密码" autocomplete="current-password" />
+        <div style="text-align:center;margin-top:8px;">
+          <a href="#" id="forgotPasswordLink" style="color:var(--primary);font-size:13px;text-decoration:none;">忘记密码？</a>
+        </div>
+        <button type="submit" id="loginSubmit" class="btn-primary" style="width:100%;margin-top:8px;">登录</button>
+      </form>
     </div>
   </div>
 
@@ -400,19 +415,21 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </span>
       <h2 style="margin-bottom:16px;">注册</h2>
-      <input type="text" id="regUsername" placeholder="用户名" />
-      <input type="email" id="regEmail" placeholder="邮箱" />
-      <input type="password" id="regPassword" placeholder="密码（至少6位）" />
-      <input type="password" id="regBootstrapToken" placeholder="管理员初始化令牌" autocomplete="off" style="display:none;" />
-      <div id="regEmailCodeRow" class="email-code-row">
-        <input type="text" id="regEmailCode" placeholder="邮箱验证码" autocomplete="off" />
-        <button type="button" id="regSendCodeBtn" class="btn-secondary">获取验证码</button>
-      </div>
-      <div class="captcha-row">
-        <span id="regCaptchaQuestion">3 + 5 = ?</span>
-        <input type="text" id="regCaptchaInput" placeholder="答案" style="width:80px;" />
-      </div>
-      <button id="registerSubmit" class="btn-primary" style="width:100%;">注册</button>
+      <form id="registerForm" autocomplete="on">
+        <input type="text" id="regUsername" name="username" placeholder="用户名" autocomplete="username" />
+        <input type="email" id="regEmail" name="email" placeholder="邮箱" autocomplete="email" />
+        <input type="password" id="regPassword" name="password" placeholder="密码（至少6位）" autocomplete="new-password" />
+        <input type="password" id="regBootstrapToken" placeholder="管理员初始化令牌" autocomplete="off" style="display:none;" />
+        <div id="regEmailCodeRow" class="email-code-row">
+          <input type="text" id="regEmailCode" placeholder="邮箱验证码" autocomplete="one-time-code" />
+          <button type="button" id="regSendCodeBtn" class="btn-secondary">获取验证码</button>
+        </div>
+        <div class="captcha-row">
+          <span id="regCaptchaQuestion">3 + 5 = ?</span>
+          <input type="text" id="regCaptchaInput" placeholder="答案" autocomplete="off" style="width:80px;" />
+        </div>
+        <button type="submit" id="registerSubmit" class="btn-primary" style="width:100%;">注册</button>
+      </form>
     </div>
   </div>
 
@@ -446,11 +463,13 @@
       </span>
       <h2 style="margin-bottom:16px;">🔑 重置密码</h2>
       <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">输入你的邮箱和一个未使用的恢复码</p>
-      <input type="email" id="resetEmail" placeholder="邮箱" />
-      <input type="text" id="resetRecoveryCode" placeholder="恢复码（格式：ABCD-1234-EFGH-5678）" style="font-family:monospace;letter-spacing:0.5px;" />
-      <input type="password" id="resetNewPassword" placeholder="新密码（至少6位）" />
-      <button id="resetPasswordSubmit" class="btn-primary" style="width:100%;">重置密码</button>
-      <div id="resetStatus" style="font-size:14px;margin-top:8px;text-align:center;"></div>
+      <form id="forgotPasswordForm" autocomplete="on">
+        <input type="email" id="resetEmail" name="email" placeholder="邮箱" autocomplete="email" />
+        <input type="text" id="resetRecoveryCode" placeholder="恢复码（格式：ABCD-1234-EFGH-5678）" autocomplete="off" style="font-family:monospace;letter-spacing:0.5px;" />
+        <input type="password" id="resetNewPassword" name="new-password" placeholder="新密码（至少6位）" autocomplete="new-password" />
+        <button type="submit" id="resetPasswordSubmit" class="btn-primary" style="width:100%;">重置密码</button>
+        <div id="resetStatus" style="font-size:14px;margin-top:8px;text-align:center;"></div>
+      </form>
     </div>
   </div>
 

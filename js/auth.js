@@ -2,6 +2,16 @@
 //  🔐 认证
 // ============================================================
 
+// 三个认证表单的提交拦截。
+// 输入框与按钮原本裸放在 div 中（页面没有 form 标签），密码管理器因此
+// 找不到表单边界，会靠启发式猜测把首页搜索框也当成账号字段填入。
+// 现改用真正的 <form> 包裹，需要拦下默认提交行为——否则按回车或点按钮
+// 会触发浏览器原生提交导致页面刷新。
+['loginForm', 'registerForm', 'forgotPasswordForm'].forEach(id => {
+  const form = document.getElementById(id);
+  if (form) form.addEventListener('submit', e => e.preventDefault());
+});
+
 // 登录事件绑定
 document.getElementById('loginBtn').addEventListener('click', () => {
   document.getElementById('loginModal').classList.add('active');
