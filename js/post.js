@@ -57,11 +57,13 @@ async function renderPostDetail(postId) {
     const renderedContent = renderMarkdown(post.content || '');
 
     // 签名渲染
+    // 详情页保留签名展示。补上类名以便统一样式定位——列表页的同类元素
+    // 正是靠 .post-signature 隐藏的，此前详情页只有行内样式，无法选中。
     let signatureHtml = '';
     if (post.signature) {
       const sigContent = renderMarkdown(post.signature);
       signatureHtml = `
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
+        <div class="post-signature" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
           ${sigContent}
         </div>
       `;
@@ -85,6 +87,10 @@ async function renderPostDetail(postId) {
             ${currentUser && currentUser.id === post.user_id ? `<button class="btn-sm btn-danger" id="detailDeleteBtn" data-postid="${post.id}" style="padding:4px 10px;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               删除
+            </button>` : ''}
+            ${currentUser ? `<button class="btn-sm btn-secondary" id="detailReportBtn" data-postid="${post.id}" style="padding:4px 10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+              举报
             </button>` : ''}
           </div>
         </div>
@@ -187,6 +193,16 @@ async function renderPostDetail(postId) {
           renderFeed();
           renderStats();
         }).catch(err => showToast('删除失败：' + err.message, 'error'));
+      });
+    }
+
+    // 举报按钮：原先只在列表卡片上，现移到详情页。
+    // 提交逻辑在 app.js 中读取 reportTargetPostId，这里只负责记录目标并打开弹窗。
+    const reportBtn = document.getElementById('detailReportBtn');
+    if (reportBtn) {
+      reportBtn.addEventListener('click', function() {
+        reportTargetPostId = this.dataset.postid;
+        document.getElementById('reportModal').classList.add('active');
       });
     }
 

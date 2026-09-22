@@ -431,11 +431,11 @@ function renderAdminSettings() {
   container.innerHTML = `
     <h3 style="margin-bottom:16px;text-align:center;">${getIcon('settings')} 论坛名称</h3>
 
-    <div style="max-width:400px;margin:0 auto;width:100%;">
-      <label style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;">论坛名称</label>
-      <input type="text" id="settingsForumName" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:15px;margin-bottom:12px;font-family:inherit;background:var(--bg);color:var(--text);" />
+    <div class="forum-name-form">
+      <label for="settingsForumName" style="font-weight:600;font-size:14px;display:block;margin-bottom:6px;width:100%;">论坛名称</label>
+      <input type="text" id="settingsForumName" placeholder="论坛名称" />
       <button id="settingsForumSave" class="btn-primary" style="padding:10px 24px;">保存</button>
-      <span id="settingsResult" style="margin-left:12px;font-size:14px;"></span>
+      <span id="settingsResult" style="font-size:14px;"></span>
     </div>
   `;
 
@@ -457,6 +457,192 @@ function renderAdminSettings() {
     } catch (err) {
       document.getElementById('settingsResult').innerHTML = `${getIcon('error')} 保存失败`;
       document.getElementById('settingsResult').style.color = '#ef4444';
+    }
+  });
+}
+
+// ============================================================
+//  📧 邮件设置（SMTP）
+// ============================================================
+
+function renderAdminSmtp() {
+  const container = document.getElementById('adminContent');
+  container.innerHTML = `
+    <h3 style="margin-bottom:6px;text-align:center;">${getIcon('message')} 邮件设置</h3>
+    <p style="text-align:center;color:var(--text-secondary);font-size:13px;margin-bottom:20px;">
+      配置后可用于注册邮箱验证与密码找回。密码只写不读，保存后不会回显。
+    </p>
+
+    <div class="smtp-form">
+      <div id="smtpStatus" style="margin-bottom:16px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;"></div>
+
+      <label class="smtp-check">
+        <input type="checkbox" id="smtpEnabled" />
+        启用邮件发送
+      </label>
+
+      <label for="smtpHost">SMTP 服务器</label>
+      <input type="text" id="smtpHost" placeholder="smtp.example.com" autocomplete="off" />
+      <div class="smtp-hint">
+        Resend 填 <code>smtp.resend.com</code>，端口 465、加密选 SSL/TLS、用户名填 <code>resend</code>。
+        其他服务商请填写其官方 SMTP 地址。
+      </div>
+
+      <div class="smtp-row">
+        <div>
+          <label for="smtpPort">端口</label>
+          <input type="number" id="smtpPort" placeholder="587" min="1" max="65535" />
+        </div>
+        <div>
+          <label for="smtpSecure">加密方式</label>
+          <select id="smtpSecure">
+            <option value="false">STARTTLS（587）</option>
+            <option value="true">SSL/TLS（465）</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="smtpUser">用户名</label>
+      <input type="text" id="smtpUser" placeholder="通常为完整邮箱地址" autocomplete="off" />
+
+      <label for="smtpPassword">密码 / 授权码</label>
+      <input type="password" id="smtpPassword" placeholder="留空表示不修改已保存的密码" autocomplete="new-password" />
+      <div class="smtp-hint">
+        QQ、163 等邮箱填「授权码」；<strong>Resend 填 API Key</strong>（re_ 开头）。
+      </div>
+
+      <label for="smtpFromName">发件人名称</label>
+      <input type="text" id="smtpFromName" placeholder="例如：论坛名称" />
+
+      <label for="smtpFromEmail">发件人邮箱 <span style="color:#ef4444;">*</span></label>
+      <input type="email" id="smtpFromEmail" placeholder="noreply@example.com" />
+      <div class="smtp-hint">
+        必须是你已在邮件服务商处验证过的域名下的地址，否则会被拒收。
+      </div>
+
+      <label class="smtp-check" style="margin-bottom:20px;">
+        <input type="checkbox" id="smtpAllowSelfSigned" />
+        允许自签证书（仅自建邮件服务器需要）
+      </label>
+
+      <div class="smtp-actions">
+        <button id="smtpSaveBtn" class="btn-primary" style="padding:10px 22px;">保存配置</button>
+        <button id="smtpTestBtn" class="btn-secondary" style="padding:10px 22px;">发送测试邮件</button>
+        <button id="smtpClearPwBtn" class="btn-secondary" style="padding:10px 22px;">清除密码</button>
+      </div>
+
+      <hr />
+
+      <h4 style="font-size:15px;margin-bottom:6px;">注册邮箱验证</h4>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+        开启后，新用户注册必须填写邮箱收到的验证码。需先完成上方配置并确保测试邮件可送达。
+      </p>
+      <label class="smtp-check" style="margin-bottom:0;">
+        <input type="checkbox" id="emailVerifyRequired" />
+        要求注册时验证邮箱
+      </label>
+    </div>
+  `;
+
+  const $ = id => document.getElementById(id);
+
+  // 载入现有配置
+  API.getSmtpConfig().then(cfg => {
+    $('smtpEnabled').checked = cfg.enabled;
+    $('smtpHost').value = cfg.host || '';
+    $('smtpPort').value = cfg.port || 587;
+    $('smtpSecure').value = String(cfg.secure);
+    $('smtpUser').value = cfg.user || '';
+    $('smtpFromName').value = cfg.from_name || '';
+    $('smtpFromEmail').value = cfg.from_email || '';
+    $('smtpAllowSelfSigned').checked = cfg.allow_self_signed === true;
+    // 密码永不回显，只用占位文字提示是否已设置
+    $('smtpPassword').placeholder = cfg.password_set
+      ? '已保存密码，留空则不修改'
+      : '尚未设置密码';
+
+    const status = $('smtpStatus');
+    if (cfg.configured) {
+      status.innerHTML = `${getIcon('success')} 配置完整，可以发信`;
+      status.style.background = 'rgba(34,197,94,0.12)';
+      status.style.color = '#16a34a';
+    } else {
+      status.innerHTML = `${getIcon('warning')} 尚未配置完成，邮件功能不可用`;
+      status.style.background = 'rgba(245,158,11,0.12)';
+      status.style.color = '#d97706';
+    }
+  }).catch(err => {
+    showToast('加载配置失败：' + err.message, 'error');
+  });
+
+  // 读取邮箱验证开关（该值在公开设置接口中）
+  API.getSettings().then(s => {
+    $('emailVerifyRequired').checked = s.email_verify_required === true;
+  }).catch(() => {});
+
+  $('smtpSaveBtn').addEventListener('click', async () => {
+    const payload = {
+      enabled: $('smtpEnabled').checked,
+      host: $('smtpHost').value.trim(),
+      port: Number($('smtpPort').value || 587),
+      secure: $('smtpSecure').value === 'true',
+      user: $('smtpUser').value.trim(),
+      from_name: $('smtpFromName').value.trim(),
+      from_email: $('smtpFromEmail').value.trim(),
+      allow_self_signed: $('smtpAllowSelfSigned').checked,
+    };
+    // 只有填了才提交，避免把已保存的密码覆盖成空
+    const pw = $('smtpPassword').value;
+    if (pw) payload.password = pw;
+
+    try {
+      await API.saveSmtpConfig(payload);
+      $('smtpPassword').value = '';
+      showToast('配置已保存', 'success');
+      renderAdminSmtp();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  $('smtpTestBtn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = '发送中…';
+    try {
+      const r = await API.sendTestMail();
+      showToast('测试邮件已发送至 ' + r.to, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '发送测试邮件';
+    }
+  });
+
+  $('smtpClearPwBtn').addEventListener('click', async () => {
+    const ok = await showConfirm('确定要清除已保存的 SMTP 密码吗？', {
+      title: '清除密码', confirmText: '清除', danger: true,
+    });
+    if (!ok) return;
+    try {
+      await API.clearSmtpPassword();
+      showToast('密码已清除', 'success');
+      renderAdminSmtp();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  $('emailVerifyRequired').addEventListener('change', async function() {
+    const desired = this.checked;
+    try {
+      await API.setEmailVerifyRequired(desired);
+      showToast(desired ? '已开启注册邮箱验证' : '已关闭注册邮箱验证', 'success');
+    } catch (err) {
+      // 失败时把开关状态回滚，避免界面与服务端不一致
+      this.checked = !desired;
+      showToast(err.message, 'error');
     }
   });
 }
@@ -834,6 +1020,7 @@ document.querySelector('.admin-nav')?.addEventListener('click', function(e) {
     links: renderAdminLinks,
     'custom-css': renderAdminCustomCSS,
     settings: renderAdminSettings,
+    smtp: renderAdminSmtp,
     custom: renderAdminCustomPages
   };
   if (tabMap[tab]) tabMap[tab]();

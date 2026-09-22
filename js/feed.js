@@ -6,6 +6,18 @@ let currentSort = 'latest';
 let totalPages = 1;
 const PAGE_SIZE = 20;
 
+// 翻页后滚回列表顶部。分页控件在列表末尾，不回到顶部的话用户看到的
+// 仍是新一页的底部。
+// 尊重系统的「减少动画」设置：开启时直接跳转，不做平滑滚动。
+function scrollFeedToTop() {
+  const reduceMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({
+    top: 0,
+    behavior: reduceMotion ? 'auto' : 'smooth',
+  });
+}
+
 function renderFeed() {
   const container = document.getElementById('postList');
   container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
@@ -34,12 +46,23 @@ function renderFeed() {
         'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) +
         '&background=6366f1&color=fff&size=64';
       const time = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
+      // 列表里最多展示 3 张图，其余折叠为「+N」。
+      // 附件上限是 6 张，若全部铺开会把卡片撑得很高，且与相邻卡片不齐。
       let imagesHtml = '';
       if (p.images && p.images.length > 0) {
+        const MAX_THUMBS = 3;
+        const shown = p.images.slice(0, MAX_THUMBS);
+        const rest = p.images.length - shown.length;
+
         imagesHtml = '<div class="post-images">';
-        p.images.forEach(img => {
-          imagesHtml += '<img src="' + escapeHTML(safeURL(img, { image: true })) + '" class="post-image" style="cursor:pointer;" />';
+        shown.forEach(img => {
+          imagesHtml += '<img src="' + escapeHTML(safeURL(img, { image: true })) +
+            '" class="post-image" style="cursor:pointer;" />';
         });
+        // 多于 3 张时，在末张右下角叠加剩余数量
+        if (rest > 0) {
+          imagesHtml += '<span class="post-image-more">+' + rest + '</span>';
+        }
         imagesHtml += '</div>';
       }
       const replyCount = p.reply_count || 0;
@@ -51,7 +74,7 @@ function renderFeed() {
       if (p.signature) {
         const sigContent = renderMarkdown(p.signature);
         signatureHtml = `
-          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
+          <div class="post-signature" style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-secondary);">
             ${sigContent}
           </div>
         `;
@@ -72,16 +95,8 @@ function renderFeed() {
           <div class="post-actions">
             <span>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              ${replyCount}
+              ${replyCount} 条回复
             </span>
-            <button class="action-report" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-              举报
-            </button>
-            ${currentUser && currentUser.id === p.user_id ? `<button class="action-delete" data-postid="${p.id}">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              删除
-            </button>` : ''}
           </div>
           ${signatureHtml}
         </div>
@@ -157,6 +172,9 @@ function renderFeed() {
             url.searchParams.set('postpage', page);
             window.history.pushState({}, '', url);
             renderFeed();
+            // 分页控件位于列表末尾，翻页后若不回到顶部，用户看到的仍是
+            // 新一页的底部，需要手动上滚才能读到第一条。这里平滑滚回顶部。
+            scrollFeedToTop();
           }
         });
       });
@@ -184,27 +202,10 @@ function renderFeed() {
       });
     });
 
-    container.querySelectorAll('.action-report').forEach(btn => {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (!currentUser) { showToast('请先登录', 'warning'); return; }
-        reportTargetPostId = this.dataset.postid;
-        document.getElementById('reportModal').classList.add('active');
-      });
-    });
-    container.querySelectorAll('.action-delete').forEach(btn => {
-      btn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        const ok = await showConfirm('确定要删除这条帖子吗？', {
-          title: '删除帖子', confirmText: '删除', danger: true,
-        });
-        if (!ok) return;
-        API.deletePost(this.dataset.postid).then(() => {
-          renderFeed();
-          renderStats();
-        }).catch(err => showToast('删除失败：' + err.message, 'error'));
-      });
-    });
+    // 卡片上不再放举报与删除按钮：这两个操作针对的是帖子内容本身，
+    // 放在卡片上容易被误解为对整张卡片操作，也容易误点。
+    // 它们统一放在帖子详情页，用户点进帖子后操作。
+    // （卡片的点击跳转绑定在上方，此处无需重复绑定。）
   }).catch(err => {
     container.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px 0;">加载失败：' + escapeHTML(err.message) +
       '</div>';

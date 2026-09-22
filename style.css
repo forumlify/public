@@ -1938,6 +1938,16 @@ a.btn-secondary {
 
 /* ============================================================
    帖子列表 —— 内容截断（纯 CSS）
+   ------------------------------------------------------------
+   目标：无论帖子多长、标题多长、带多少张图，列表里每张卡片的高度
+   都尽量接近，避免某一条把整列撑得参差不齐。
+
+   三处限制：
+   - 标题 2 行：原先完全没有限制，长标题能占 6 行、把卡片撑高 70px
+   - 正文 3 行：原有规则，保留
+   - 图片最多显示 3 张：更靠后的折叠为「+N」，由 JS 负责
+
+   注意这些规则只作用于 #feed（列表页），帖子详情页不受影响。
    ============================================================ */
 
 #feed .post-content {
@@ -1948,6 +1958,62 @@ a.btn-secondary {
   text-overflow: ellipsis;
   max-height: none;
   line-height: 1.7;
+}
+
+/* 标题超过 2 行即截断。不加这条时，一条长标题能把卡片撑高 70px，
+   与相邻卡片明显不齐。 */
+#feed .post-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 长单词或连续串也要能断行，否则会横向溢出 */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 正文里的超长链接同理 */
+#feed .post-content {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 列表页隐藏签名：签名长度不一，是卡片高度差异的主要来源之一，
+   而它在列表里并不承担信息价值，放在详情页展示更合适。 */
+#feed .post-signature {
+  display: none;
+}
+
+/* ===== 列表页的图片折叠 ===== */
+
+/* 容器需为定位上下文，好让「+N」叠在缩略图组上 */
+#feed .post-images {
+  position: relative;
+}
+
+/* 列表页缩略图统一尺寸。取 120×90 是为了让带图卡片的总高度
+   尽量接近无图卡片，避免列表里出现忽高忽低的落差；
+   单张 200px 的原限制在 3 张并排时也会把卡片撑高。 */
+#feed .post-image {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+}
+
+/* 剩余图片计数，叠在缩略图组右侧 */
+#feed .post-image-more {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  pointer-events: none;
 }
 
 /* ============================================================
@@ -2138,12 +2204,6 @@ a.btn-secondary {
    论坛设置页面 —— 对齐修复
    ============================================================ */
 
-/* CSS 上传区域居中 */
-#adminContent > div:last-child {
-  max-width: 500px !important;
-  margin: 0 auto !important;
-}
-
 /* 论坛名称输入框保持居中（已经是了） */
 #settingsForumName {
   max-width: 400px !important;
@@ -2164,11 +2224,13 @@ a.btn-secondary {
   text-align: center !important;
 }
 
-/* CSS 上传区域居中（如果还没加） */
-#adminContent > div:last-child {
-  max-width: 500px !important;
-  margin: 0 auto !important;
-}
+/* 注：此处原有两条 `#adminContent > div:last-child { max-width:500px }`
+   规则，本意是给「自定义 CSS」页面的上传区限宽居中。但 :last-child
+   会命中任何以单个 div 作为最外层容器的面板——用户列表正是这种结构，
+   因而被压成 500px 居中，与占满宽度的日志列表相差 426px。
+
+   该页面的上传区本身已带行内 `max-width:500px; margin:0 auto`，
+   这两条规则纯属多余且有害，已删除。 */
 
 /* 论坛名称输入框居中 */
 #settingsForumName {
@@ -2181,29 +2243,32 @@ a.btn-secondary {
    论坛设置 —— 名称输入框 + 保存按钮同行
    ============================================================ */
 
-/* 论坛名称区域的容器（假设是 div 包着 input + button） */
-#adminContent > div:first-of-type {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 8px !important;
-  max-width: 500px !important;
-  margin: 0 auto !important;
-  flex-wrap: wrap !important;
+/* 原先这里用 `#adminContent > div:first-of-type` 定位本面板，
+   依赖「第一个 div 就是论坛名称区域」这一脆弱假设。任何新增的
+   后台面板只要把 div 放在最前就会被打成 flex 行布局（邮件设置面板
+   就踩到了这个坑）。改为显式的类名，语义明确且互不干扰。 */
+.forum-name-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 500px;
+  margin: 0 auto;
+  flex-wrap: wrap;
 }
 
 /* 输入框 flex: 1 占满剩余空间 */
 #settingsForumName {
-  flex: 1 !important;
-  min-width: 200px !important;
-  margin: 0 !important;
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
 }
 
 /* 保存按钮不需要全宽 */
 #settingsForumSave {
-  width: auto !important;
-  flex-shrink: 0 !important;
-  margin: 0 !important;
+  width: auto;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 /* 状态提示文字紧跟按钮 */
@@ -2878,6 +2943,221 @@ a.btn-secondary {
 }
 
 /* ============================================================
+   📧 邮件设置面板
+   ------------------------------------------------------------
+   管理后台的输入框原本没有统一的宽度与间距规则，靠行内样式零散
+   指定。这里用一个专用容器类统一约束，避免与 label 挤在同一行。
+   ============================================================ */
+
+.smtp-form {
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+  /* 管理后台的容器默认是 flex 行布局，会把 label 与 input 横向排开。
+     这里显式改回纵向块级流，让每个控件独占一行。 */
+  display: block;
+}
+
+/* 表单内的文本控件独占一行 */
+.smtp-form input:not([type="checkbox"]),
+.smtp-form select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 14px;
+}
+
+/* 复选框保持自然尺寸，与文字同一行 */
+.smtp-form input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  flex: none;
+}
+
+.smtp-form label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+/* 包裹复选框的 label 用 flex，使方框与文字对齐 */
+.smtp-form label.smtp-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
+.smtp-form .smtp-row {
+  display: flex;
+  gap: 12px;
+}
+
+.smtp-form .smtp-row > div {
+  flex: 1;
+}
+
+.smtp-form .smtp-hint {
+  font-size: 12px;
+  color: var(--glass-text-light);
+  margin: -8px 0 14px;
+}
+
+.smtp-form .smtp-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0 24px;
+}
+
+.smtp-form hr {
+  border: none;
+  border-top: 1px solid var(--glass-border);
+  margin: 0 0 20px;
+}
+
+/* 窄屏时端口与加密方式改为纵向排列 */
+@media (max-width: 480px) {
+  .smtp-form .smtp-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* ============================================================
+   📧 注册邮箱验证码
+   ------------------------------------------------------------
+   验证码输入框与「获取验证码」按钮并排，输入框占据剩余宽度。
+   此前这两个元素靠行内样式排列，但容器漏了 display:flex，导致
+   gap / align-items / flex:1 全部失效，实际渲染成上下两行。
+   现在布局由类名控制，显隐只切 .is-visible，避免相互干扰。
+   ============================================================ */
+
+.email-code-row {
+  display: none;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.email-code-row.is-visible {
+  display: flex;
+}
+
+/* 输入框占满按钮之外的剩余空间 */
+.email-code-row #regEmailCode {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  font-family: monospace;
+  letter-spacing: 2px;
+}
+
+/* 按钮保持自然宽度，倒计时数字变化时不被压缩 */
+.email-code-row #regSendCodeBtn {
+  flex: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 96px;
+  /* 与输入框严格等高：按钮的行高受继承影响会比输入框高几像素，
+     在 align-items:center 下会出现轻微错位，这里显式对齐。 */
+  line-height: 18px;
+  height: 38px;
+  box-sizing: border-box;
+  /* 用品牌色实心按钮，与旁边的输入框明确区分——
+     若沿用模态框内按钮的浅灰底，会和输入框几乎同色，
+     看起来像第二个输入框而非可点击的控件。 */
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.email-code-row #regSendCodeBtn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.email-code-row #regSendCodeBtn:disabled {
+  /* 倒计时期间保持可见但明显不可点 */
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   🔘 模态框内的按钮
+   ------------------------------------------------------------
+   .btn-primary / .btn-secondary 的背景取自 --glass-bg，亮色下为
+   18% 的不透明白。这种取值原本是叠在模糊背景上用的，但模态框现在
+   已是纯白底（见 .modal-content 的说明），半透明白叠在白底上完全
+   看不出按钮轮廓，只剩文字浮在那里。
+
+   这里为模态框内的按钮给出明确的底色与描边，并按主题分别处理。
+   仅作用于 .modal-content 内部，不影响页面其他位置的按钮。
+   ============================================================ */
+
+.modal-content .btn-primary,
+.modal-content .btn-secondary {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: background var(--dur-base, 0.26s) ease,
+              border-color var(--dur-base, 0.26s) ease,
+              box-shadow var(--dur-base, 0.26s) ease;
+}
+
+/* 亮色：浅灰底 + 清晰描边，主按钮略深以示强调 */
+.modal-content .btn-primary {
+  background: #eef1f6;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  color: var(--glass-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.modal-content .btn-primary:hover {
+  background: #e4e9f1;
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+.modal-content .btn-secondary {
+  background: #f7f9fc;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  color: var(--glass-text);
+  box-shadow: none;
+}
+
+.modal-content .btn-secondary:hover {
+  background: #eef1f6;
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+/* 暗色：沿用半透明质感，但提高对比度以保证按钮边界可见 */
+[data-theme="dark"] .modal-content .btn-primary,
+[data-theme="dark"] .modal-content .btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--glass-text);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .modal-content .btn-primary:hover,
+[data-theme="dark"] .modal-content .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* 禁用态（如验证码倒计时中） */
+.modal-content .btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ============================================================
    ❓ 确认对话框
    ------------------------------------------------------------
    替代浏览器原生 confirm()。结构由 js/app.js 的 showConfirm()
@@ -2998,10 +3278,18 @@ a.btn-secondary {
 }
 
 /* 覆盖所有文本输入控件。排除 checkbox/radio/file/range/color 等
-   非文本控件，它们用凹陷阴影会显得突兀。 */
+   非文本控件，它们用凹陷阴影会显得突兀。
+
+   注意：只加视觉相关的 !important，不要给 padding / width 加，
+   否则会压过各页面（如管理后台）已有的尺寸定制，导致输入框塌陷。
+   这里给出兜底的 padding，让没有单独定义内边距的输入框也有正常高度。 */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]),
 textarea,
 select {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--glass-text);
   background: var(--inset-bg) !important;
   border: 1px solid var(--inset-border) !important;
   box-shadow: var(--inset-shadow) !important;
