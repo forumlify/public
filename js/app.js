@@ -206,6 +206,105 @@ async function loadForumName() {
   }
 }
 
+// ============================================================
+//  页面转场
+// ============================================================
+// 打开一个覆盖页时：
+//   1. 首页（#app）留在原位，缩小并后退，同时叠加暗色遮罩 → 「下沉」
+//   2. 新页面从屏幕之外滑入，并由 0.94 放大到 1
+// 关闭时反向播放：新页面滑出屏幕，首页上浮回原位。
+//
+// 关键点：首页不再被 display:none 直接隐藏，否则整段动画无从谈起。
+// 只有在转场完全结束后才把它藏起来，避免它继续响应点击或影响滚动。
+
+const TRANSITION_MS = 420;
+
+function sinkBackground() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.classList.remove('page-stack-rise');
+  app.classList.add('page-stack-sink');
+  document.body.classList.add('page-stack-open');
+}
+
+function riseBackground() {
+  const app = document.getElementById('app');
+  document.body.classList.remove('page-stack-open');
+  if (!app) return;
+  app.classList.remove('page-stack-sink');
+  app.classList.add('page-stack-rise');
+  // 动画结束后移除类，避免遗留的 transform 影响 sticky 定位等
+  window.setTimeout(() => app.classList.remove('page-stack-rise'), TRANSITION_MS);
+}
+
+// 展示某个覆盖页：先让背景下沉，再挂上 active 触发滑入
+function showSlide(el, { back = false } = {}) {
+  if (!el) return;
+  // 清掉上一次的退出状态
+  el.classList.remove('slide-out', 'slide-out-back', 'slide-back');
+  if (back) el.classList.add('slide-back');
+  el.classList.add('active');
+  // 强制重排以重放动画（同一元素连续切换时需要）
+  el.style.animation = 'none';
+  void el.offsetHeight;
+  el.style.animation = '';
+
+  // 首页仍在文档流中，需要让出滚动位置
+  sinkBackground();
+}
+
+// 关闭覆盖页：播退出动画，结束后清理状态并让首页上浮
+function hideSlide(el, { back = false, onDone } = {}) {
+  if (!el) {
+    riseBackground();
+    if (onDone) onDone();
+    return;
+  }
+  el.classList.remove('active', 'slide-back');
+  el.classList.add('slide-out');
+  if (back) el.classList.add('slide-out-back');
+
+  riseBackground();
+
+  window.setTimeout(() => {
+    el.classList.remove('slide-out', 'slide-out-back');
+    if (onDone) onDone();
+  }, 300);
+}
+
+// 返回首页：当前覆盖页向左滑出，首页从下沉状态上浮回原位。
+// 与浏览器后退键走同一条路径，保证两种方式的方向感一致。
+function navigateBackToFeed() {
+  const currentSlide = document.querySelector('.page-slide.active');
+
+  // 同步 URL：去掉页面参数，回到纯首页地址
+  const url = new URL(window.location);
+  url.searchParams.delete('page');
+  url.searchParams.delete('post');
+  url.searchParams.delete('user');
+  url.searchParams.delete('custom');
+  window.history.pushState({ page: 'feed' }, '', url);
+
+  if (currentSlide) {
+    hideSlide(currentSlide, { back: true, onDone: () => {
+      document.getElementById('app').style.display = 'flex';
+    } });
+  } else {
+    document.getElementById('app').style.display = 'flex';
+    riseBackground();
+  }
+
+  const customContainer = document.getElementById('customPageContainer');
+  if (customContainer && customContainer.classList.contains('active')) {
+    hideSlide(customContainer, { back: true });
+  }
+
+  currentPage = 'feed';
+  renderFeed();
+  renderStats();
+  renderLinks();
+}
+
 function switchPage(page, param) {
   const url = new URL(window.location);
 
@@ -250,19 +349,34 @@ function switchPage(page, param) {
   }
   window.history.pushState({ page: page }, '', url);
 
-  document.getElementById('app').style.display = 'none';
-  document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out', 'slide-back');
-  });
+  // 转场开始：先记录当前显示的覆盖页，稍后让它滑出
+  const currentSlide = document.querySelector('.page-slide.active');
+  const goingBack = typeof window.isNavigatingBack === 'function' && window.isNavigatingBack();
+
+  // 目标页就是当前页时无需转场
+  const pageMap = {
+    messages: 'pageMessages',
+    settings: 'pageSettings',
+    admin: 'pageAdmin',
+    new: 'pageNew'
+  };
+  const targetEl = page === 'feed' ? null : document.getElementById(pageMap[page]);
+  if (currentSlide && targetEl && currentSlide === targetEl) return;
+
+  // 旧覆盖页滑出
+  if (currentSlide && currentSlide !== targetEl) {
+    hideSlide(currentSlide, { back: goingBack });
+  }
 
   const customContainer = document.getElementById('customPageContainer');
-  if (customContainer) {
-    customContainer.classList.remove('active');
-    customContainer.style.display = 'none';
+  if (customContainer && customContainer.classList.contains('active')) {
+    hideSlide(customContainer);
   }
 
   if (page === 'feed') {
+    // 回到首页：首页上浮回原位，不需要显示任何覆盖页
     document.getElementById('app').style.display = 'flex';
+    riseBackground();
     currentPage = 'feed';
     renderFeed();
     renderStats();
@@ -270,23 +384,9 @@ function switchPage(page, param) {
     return;
   }
 
-  const pageMap = {
-    messages: 'pageMessages',
-    settings: 'pageSettings',
-    admin: 'pageAdmin',
-    new: 'pageNew'
-  };
-  const el = document.getElementById(pageMap[page]);
+  const el = targetEl;
   if (el) {
-    // 后退导航时用反向滑入：返回上一页时内容应从左侧进来，
-    // 而主动点击进入是从右侧进来。
-    if (typeof window.isNavigatingBack === 'function' && window.isNavigatingBack()) {
-      el.classList.add('slide-back');
-    }
-    el.classList.add('active');
-    el.style.animation = 'none';
-    void el.offsetHeight;
-    el.style.animation = '';
+    showSlide(el, { back: goingBack });
     currentPage = page;
 
     if (page === 'admin') {
@@ -610,23 +710,25 @@ function renderCustomPagesNav() {
 // ============================================================
 
 function showCustomPage(pageName) {
-  document.getElementById('app').style.display = 'none';
-  document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out', 'slide-back');
-  });
+  const goingBack = typeof window.isNavigatingBack === 'function' && window.isNavigatingBack();
 
   let container = document.getElementById('customPageContainer');
   if (!container) {
     container = document.createElement('div');
     container.id = 'customPageContainer';
     container.className = 'page-slide';
-    container.style.cssText = 'display:none;position:fixed;inset:0;background:var(--bg);z-index:50;padding:84px 32px 40px;overflow-y:auto;transition:background 0.2s;';
+    // 不再写内联 display：交给 .page-slide / .active 的样式控制，
+    // 否则会覆盖转场动画所需的 display 切换。
     document.body.appendChild(container);
   }
 
-  container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px 0;">加载中...</div>';
-  container.classList.add('active');
-  container.style.display = 'block';
+  // 先让其他覆盖页滑出
+  document.querySelectorAll('.page-slide.active').forEach(other => {
+    if (other !== container) hideSlide(other, { back: goingBack });
+  });
+
+  container.innerHTML = Skeleton.postDetail();
+  showSlide(container, { back: goingBack });
   currentPage = 'custom';
 
   API.getCustomPage(pageName).then(page => {
@@ -1350,12 +1452,13 @@ async function init() {
 
   document.querySelectorAll('.back-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-      switchPage('feed');
+      // 返回按钮等同于后退导航：让当前页向左滑出、首页从下沉状态上浮
+      navigateBackToFeed();
     });
   });
 
   document.getElementById('forumName').addEventListener('click', function() {
-    switchPage('feed');
+    navigateBackToFeed();
   });
 
   // ===== 忘记密码 =====

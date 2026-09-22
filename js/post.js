@@ -14,20 +14,16 @@ function switchToPost(postId) {
 }
 
 function showPostPage(postId) {
-  document.getElementById('app').style.display = 'none';
-  document.querySelectorAll('.page-slide').forEach(el => {
-    el.classList.remove('active', 'slide-out', 'slide-back');
-  });
+  const goingBack = typeof window.isNavigatingBack === 'function' && window.isNavigatingBack();
   const el = document.getElementById('pagePost');
-  // 后退导航时用反向滑入，与主动进入区分
-  if (typeof window.isNavigatingBack === 'function' && window.isNavigatingBack()) {
-    el.classList.add('slide-back');
-  }
-  el.classList.add('active');
-  // 强制重排以重放动画（同一元素连续切换时需要）
-  el.style.animation = 'none';
-  void el.offsetHeight;
-  el.style.animation = '';
+
+  // 先让其他覆盖页滑出（从帖子直接跳到用户主页之类的情况）
+  document.querySelectorAll('.page-slide.active').forEach(other => {
+    if (other !== el) hideSlide(other, { back: goingBack });
+  });
+
+  // 首页留在背景中下沉，新页面从屏幕外滑入
+  showSlide(el, { back: goingBack });
   currentPage = 'post';
   renderPostDetail(postId);
 }

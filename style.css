@@ -855,7 +855,77 @@ svg {
   resize: vertical;
 }
 
-/* ===== 独立页面（滑入） ===== */
+/* ===== 独立页面（推入式转场） =====
+   ------------------------------------------------------------
+   转场由两部分组成，共同营造「新页面把旧页面推到背景」的层次感：
+
+   1. 新页面（.page-slide）从屏幕右侧之外整体滑入，同时由 0.94 放大
+      到 1，配合透明度渐显。用 100vw 而非几十像素，才是真正的「从
+      屏幕外进来」而不是轻微抖动。
+   2. 旧内容（#app）留在原位但向后下沉：缩小到 0.94、右移少量、加一层
+      暗色遮罩（用 filter 提亮/压暗由 .page-stack-dim 承担）。
+
+   #app 不再被 display:none 直接藏掉，否则没有动画可言。是否下沉由
+   JS 通过 body.page-stack-open 控制。 */
+
+@keyframes pageSlideIn {
+  from {
+    transform: translateX(100%) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 后退：从左侧之外滑入 */
+@keyframes pageSlideInBack {
+  from {
+    transform: translateX(-100%) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 退出：原路滑回屏幕外，略快于进入，避免拖沓 */
+@keyframes pageSlideOut {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%) scale(0.94);
+    opacity: 0;
+  }
+}
+
+@keyframes pageSlideOutBack {
+  from {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%) scale(0.94);
+    opacity: 0;
+  }
+}
+
+/* 旧内容下沉：缩小 + 轻微右移 */
+@keyframes stackSink {
+  from { transform: translateX(0) scale(1); }
+  to   { transform: translateX(4%) scale(0.94); }
+}
+
+@keyframes stackRise {
+  from { transform: translateX(4%) scale(0.94); }
+  to   { transform: translateX(0) scale(1); }
+}
+
+/* ===== 页面覆盖层 ===== */
 .page-slide {
   display: none;
   position: fixed;
@@ -867,48 +937,87 @@ svg {
   padding: 84px 32px 40px;
   overflow-y: auto;
   transition: background 0.3s ease;
+  /* 转场期间避免横向滚动条 */
+  will-change: transform, opacity;
 }
+
 .page-slide.active {
   display: block;
-  animation: slideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: pageSlideIn 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* 后退（浏览器返回键或返回按钮）时用反向动画。
-   原先只有 slideIn 一个方向，前进与后退都从右侧滑入，方向感是错的：
-   返回上一页时内容应该从左侧进来。由 JS 在 popstate 上打这个标记。 */
+
+/* 后退（浏览器返回键或返回按钮）时方向相反 */
 .page-slide.active.slide-back {
-  animation: slideInBack 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: pageSlideInBack 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-@keyframes slideIn {
-  from {
-    transform: translateX(40px);
-    opacity: 0.6;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-@keyframes slideInBack {
-  from {
-    transform: translateX(-40px);
-    opacity: 0.6;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
+
+/* 主动离开当前页时播放退出动画，由 JS 加上 .slide-out */
 .page-slide.slide-out {
-  animation: slideOut 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  display: block;
+  animation: pageSlideOut 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
-@keyframes slideOut {
-  from {
-    transform: translateX(0);
-    opacity: 1;
+
+.page-slide.slide-out.slide-out-back {
+  animation: pageSlideOutBack 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* ===== 旧内容下沉 =====
+   #app 被推到背景：缩小并右移。
+   注意必须写成 #app.page-stack-sink 而非单独的 .page-stack-sink：
+   样式表靠后位置有一条 `#app { animation: fadeIn ... }`（交互动效层），
+   ID 选择器的优先级高于类选择器，只写类名会被它覆盖导致动画不生效。 */
+
+#app.page-stack-sink {
+  transform-origin: center center;
+  animation: stackSink 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+#app.page-stack-rise {
+  transform-origin: center center;
+  animation: stackRise 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* 下沉同时叠加暗色遮罩，强化「退到后面」的感觉。
+   遮罩放在 #app 的伪元素上，避免额外 DOM。 */
+#app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 28, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 45;
+}
+
+body.page-stack-open #app::after {
+  opacity: 1;
+}
+
+/* 下沉期间禁用旧内容的交互，防止误点 */
+#app.page-stack-sink,
+body.page-stack-open #app {
+  pointer-events: none;
+}
+
+/* 减少动画时退化为简单的淡入，不做位移与缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .page-slide.active,
+  .page-slide.active.slide-back,
+  .page-slide.slide-out,
+  .page-slide.slide-out.slide-out-back {
+    animation: fadeIn 0.12s ease-out !important;
+    transform: none !important;
   }
-  to {
-    transform: translateX(-40px);
-    opacity: 0.5;
+  /* 同样要用 ID 组合选择器才能压过 #app 的 fadeIn */
+  #app.page-stack-sink,
+  #app.page-stack-rise {
+    animation: none !important;
+    transform: none !important;
+  }
+  #app::after {
+    transition: none;
   }
 }
 
