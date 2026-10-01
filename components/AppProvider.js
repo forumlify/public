@@ -13,7 +13,7 @@ const POST_TRANSITION_PARTS = [
   ['.post-username', 'post-author'],
   ['.post-title', 'post-heading'],
   ['.post-time', 'post-time'],
-  ['.post-content', 'post-body'],
+  ['.post-content, .topic-preview', 'post-body'],
   ['.post-images', 'post-media'],
   ['.post-pin-state', 'post-pin-state'],
   ['.post-edited-label', 'post-edited-label'],
@@ -937,8 +937,8 @@ export default function AppProvider({ children, cachedName = '' }) {
     return result;
   }, []);
 
-  const register = useCallback(async (email, password, username, captcha) => {
-    const result = await API.register(email, password, username, captcha);
+  const register = useCallback(async (email, password, username, captcha, emailCode = '') => {
+    const result = await API.register(email, password, username, captcha, emailCode);
     const loginResult = await API.login(email, password);
     if (loginResult.user) {
       setCurrentUser(loginResult.user);

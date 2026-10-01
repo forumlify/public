@@ -6,8 +6,12 @@ import { verifyCaptcha } from '@/lib/captcha';
 import { logAudit } from '@/lib/audit';
 import { getReplySchemaCapabilities } from '@/lib/reply-schema';
 import { resolvePostReference } from '@/lib/post-reference';
+import { ensureUserBlocksSchema } from '@/lib/user-blocks';
 
-function repliesSelectSql(capabilities) {
+function repliesSelectSql(capabilities, viewer) {
+  const visible = viewer ? ` AND NOT EXISTS (
+    SELECT 1 FROM user_blocks b WHERE b.blocker_id = $2 AND b.blocked_id = r.user_id
+  )` : '';
   if (capabilities.replyToId) {
     return `SELECT r.id, r.post_id, r.user_id, r.content, r.created_at,
                    r.reply_to_id, u.username, u.avatar_url,
@@ -16,7 +20,7 @@ function repliesSelectSql(capabilities) {
             JOIN users u ON r.user_id = u.id
             LEFT JOIN replies rt ON r.reply_to_id = rt.id
             LEFT JOIN users ru ON rt.user_id = ru.id
-            WHERE r.post_id = $1
+            WHERE r.post_id = $1${visible}
             ORDER BY r.created_at ASC`;
   }
 
@@ -27,7 +31,7 @@ function repliesSelectSql(capabilities) {
                    r.reply_to_username
             FROM replies r
             JOIN users u ON r.user_id = u.id
-            WHERE r.post_id = $1
+            WHERE r.post_id = $1${visible}
             ORDER BY r.created_at ASC`;
   }
 
@@ -37,7 +41,7 @@ function repliesSelectSql(capabilities) {
                  u.username, u.avatar_url
           FROM replies r
           JOIN users u ON r.user_id = u.id
-          WHERE r.post_id = $1
+          WHERE r.post_id = $1${visible}
           ORDER BY r.created_at ASC`;
 }
 
@@ -45,9 +49,13 @@ export async function GET(req, { params }) {
   try {
     const reference = await resolvePostReference((await params).id);
     if (!reference) return Response.json({ error: '帖子不存在' }, { status: 404 });
+    const viewer = getUser(req);
+    if (viewer) await ensureUserBlocksSchema();
     const capabilities = await getReplySchemaCapabilities();
-    const r = await pool.query(repliesSelectSql(capabilities), [reference.id]);
-    return jsonWithEtag(req, r.rows);
+    const r = await pool.query(repliesSelectSql(capabilities, viewer), viewer ? [reference.id, viewer.id] : [reference.id]);
+    return viewer
+      ? Response.json(r.rows, { headers: { 'Cache-Control': 'private, no-store' } })
+      : jsonWithEtag(req, r.rows);
   } catch (error) {
     console.error('[replies] list failed:', error?.code || error?.message);
     return Response.json({ error: '服务器错误' }, { status: 500 });

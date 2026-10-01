@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { getUser } from '@/lib/auth';
 import { jsonWithEtag } from '@/lib/http-cache';
 import { resolvePostReference } from '@/lib/post-reference';
+import { ensureUserBlocksSchema } from '@/lib/user-blocks';
 
 function invalidId() {
   return Response.json({ error: '帖子不存在' }, { status: 404 });
@@ -10,19 +11,25 @@ function invalidId() {
 
 export async function GET(req, { params }) {
   try {
+    const viewer = getUser(req);
     const reference = await resolvePostReference((await params).id);
     if (!reference) return invalidId();
+    if (viewer) await ensureUserBlocksSchema();
     const r = await pool.query(
       `SELECT p.*, u.username, u.avatar_url, u.signature
        FROM posts p
        JOIN users u ON p.user_id = u.id
-       WHERE p.id = $1`,
-      [reference.id]
+       WHERE p.id = $1${viewer ? ` AND NOT EXISTS (
+         SELECT 1 FROM user_blocks b WHERE b.blocker_id = $2 AND b.blocked_id = p.user_id
+       )` : ''}`,
+      viewer ? [reference.id, viewer.id] : [reference.id]
     );
     if (r.rows.length === 0) {
       return invalidId();
     }
-    return jsonWithEtag(req, r.rows[0]);
+    return viewer
+      ? Response.json(r.rows[0], { headers: { 'Cache-Control': 'private, no-store' } })
+      : jsonWithEtag(req, r.rows[0]);
   } catch {
     return Response.json({ error: '服务器错误' }, { status: 500 });
   }

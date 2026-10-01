@@ -20,6 +20,7 @@
     "jsonwebtoken": "^9.0.2",
     "marked": "^18.0.9",
     "next": "16",
+    "nodemailer": "^7.0.13",
     "pg": "^8.11.3",
     "react": "19",
     "react-dom": "19",

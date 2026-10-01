@@ -22,6 +22,12 @@ export default function Modals({ modal, onClose, reportPostId }) {
   const [resetRecoveryCode, setResetRecoveryCode] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [resetMethod, setResetMethod] = useState('recovery');
+  const [mailReady, setMailReady] = useState(false);
+  const [emailCodeRequired, setEmailCodeRequired] = useState(false);
+  const [regEmailCode, setRegEmailCode] = useState('');
+  const [regCodeCooldown, setRegCodeCooldown] = useState(0);
+  const [resetCodeCooldown, setResetCodeCooldown] = useState(0);
 
   // 注册表单
   const [regUsername, setRegUsername] = useState('');
@@ -35,6 +41,12 @@ export default function Modals({ modal, onClose, reportPostId }) {
 
   // 打开注册弹窗时从服务器获取验证码挑战（HMAC 签名）
   useEffect(() => {
+    if (modal === 'login' || modal === 'register') {
+      API.getSettings().then((settings) => {
+        setMailReady(!!settings.smtp_ready);
+        setEmailCodeRequired(!!settings.email_verify_required);
+      }).catch(() => { setMailReady(false); setEmailCodeRequired(false); });
+    }
     if (modal === 'register') {
       API.getCaptcha().then((c) => setRegCaptcha(c)).catch(() => {});
     }
@@ -44,8 +56,18 @@ export default function Modals({ modal, onClose, reportPostId }) {
       setResetRecoveryCode('');
       setResetPassword('');
       setResetPasswordConfirm('');
+      setResetMethod('recovery');
     }
   }, [modal]);
+
+  useEffect(() => {
+    if (!regCodeCooldown && !resetCodeCooldown) return;
+    const timer = setInterval(() => {
+      setRegCodeCooldown((seconds) => Math.max(0, seconds - 1));
+      setResetCodeCooldown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [regCodeCooldown > 0, resetCodeCooldown > 0]);
 
   if (!modal) return null;
 
@@ -83,7 +105,11 @@ export default function Modals({ modal, onClose, reportPostId }) {
       return;
     }
     try {
-      await API.resetPassword(resetEmail.trim(), resetRecoveryCode.trim(), resetPassword);
+      if (resetMethod === 'email') {
+        await API.resetPasswordByEmail(resetEmail.trim(), resetRecoveryCode.trim(), resetPassword);
+      } else {
+        await API.resetPassword(resetEmail.trim(), resetRecoveryCode.trim(), resetPassword);
+      }
       setAuthMode('login');
       setLoginEmail(resetEmail.trim());
       setLoginPassword('');
@@ -94,6 +120,23 @@ export default function Modals({ modal, onClose, reportPostId }) {
       toast(t('auth.resetSuccess'), 'success');
     } catch (err) {
       toast(t('auth.resetFailed', { msg: err.message }), 'error');
+    }
+  };
+
+  const sendCode = async (purpose) => {
+    const email = purpose === 'register' ? regEmail.trim() : resetEmail.trim();
+    if (!email) { toast(t('auth.emailRequired'), 'warning'); return; }
+    try {
+      if (purpose === 'register') {
+        await API.sendRegisterCode(email);
+        setRegCodeCooldown(60);
+      } else {
+        await API.sendResetCode(email);
+        setResetCodeCooldown(60);
+      }
+      toast(t('auth.emailCodeSent'), 'success');
+    } catch (error) {
+      toast(t('auth.emailCodeFailed', { msg: error.message }), 'error');
     }
   };
 
@@ -108,18 +151,20 @@ export default function Modals({ modal, onClose, reportPostId }) {
   const handleRegister = async () => {
     if (!regUsername.trim() || !regEmail.trim() || !regPassword) { toast('请填写完整信息', 'warning'); return; }
     if (regPassword.length < 6) { toast('密码至少6位', 'warning'); return; }
+    if (emailCodeRequired && !regEmailCode.trim()) { toast(t('auth.emailCodeRequired'), 'warning'); return; }
     if (!regCaptcha || !regCaptchaInput.trim()) {
       toast('请填写验证码', 'warning');
       return;
     }
     try {
       // 答案由服务端 HMAC 校验，前端不对比答案
-      await register(regEmail.trim(), regPassword, regUsername.trim(), { id: regCaptcha.id, answer: regCaptchaInput.trim(), sig: regCaptcha.sig });
+      await register(regEmail.trim(), regPassword, regUsername.trim(), { id: regCaptcha.id, answer: regCaptchaInput.trim(), sig: regCaptcha.sig }, regEmailCode.trim());
       onClose();
       setRegUsername('');
       setRegEmail('');
       setRegPassword('');
       setRegCaptchaInput('');
+      setRegEmailCode('');
       toast('注册成功！', 'success');
       refresh();
     } catch (err) {
@@ -148,10 +193,11 @@ export default function Modals({ modal, onClose, reportPostId }) {
           <div className="modal-content">
             <span className="close" onClick={onClose}><Icon name="close" size={20} /></span>
             <h2 style={{ marginBottom: 16 }}>{t('auth.login')}</h2>
+            <form onSubmit={(event) => { event.preventDefault(); handleLogin(); }}>
             <input type="email" placeholder={t('auth.email')} value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-            <input type="password" placeholder={t('auth.password')} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(); }} />
-            <button className="btn-primary" style={{ width: '100%' }} onClick={handleLogin}>{t('auth.login')}</button>
+            <input type="password" placeholder={t('auth.password')} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>{t('auth.login')}</button>
+            </form>
             <button
               type="button"
               className="auth-forgot-link"
@@ -170,19 +216,27 @@ export default function Modals({ modal, onClose, reportPostId }) {
         <div className="modal active" onClick={close}>
           <div className="modal-content">
             <span className="close" onClick={onClose}><Icon name="close" size={20} /></span>
-            <h2 style={{ marginBottom: 16 }}>{t('auth.resetTitle')}</h2>
-            <p className="auth-reset-hint">{t('auth.resetHint')}</p>
+            <h2 style={{ marginBottom: 16 }}>{t(resetMethod === 'email' ? 'auth.resetEmailTitle' : 'auth.resetTitle')}</h2>
+            {mailReady && (
+              <div className="auth-reset-methods">
+                <button type="button" className={resetMethod === 'recovery' ? 'active' : ''} onClick={() => { setResetMethod('recovery'); setResetRecoveryCode(''); }}>{t('auth.recoveryMethod')}</button>
+                <button type="button" className={resetMethod === 'email' ? 'active' : ''} onClick={() => { setResetMethod('email'); setResetRecoveryCode(''); }}>{t('auth.emailMethod')}</button>
+              </div>
+            )}
+            <p className="auth-reset-hint">{t(resetMethod === 'email' ? 'auth.resetEmailHint' : 'auth.resetHint')}</p>
+            <form onSubmit={(event) => { event.preventDefault(); handleResetPassword(); }}>
             <input type="email" placeholder={t('auth.email')} value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
-            <input type="text" placeholder={t('auth.recoveryCode')} value={resetRecoveryCode} onChange={(e) => setResetRecoveryCode(e.target.value)} />
+            {resetMethod === 'email' && <button type="button" className="auth-send-code" disabled={resetCodeCooldown > 0} onClick={() => sendCode('reset')}>{resetCodeCooldown || t('auth.sendCode')}</button>}
+            <input type="text" placeholder={t(resetMethod === 'email' ? 'auth.emailCode' : 'auth.recoveryCode')} value={resetRecoveryCode} onChange={(e) => setResetRecoveryCode(e.target.value)} />
             <input type="password" placeholder={t('auth.newPassword')} value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
             <input
               type="password"
               placeholder={t('auth.confirmPassword')}
               value={resetPasswordConfirm}
               onChange={(e) => setResetPasswordConfirm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(); }}
             />
-            <button className="btn-primary" style={{ width: '100%' }} onClick={handleResetPassword}>{t('auth.resetPassword')}</button>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>{t('auth.resetPassword')}</button>
+            </form>
             <button type="button" className="auth-forgot-link" onClick={returnToLogin}>
               {t('auth.backToLogin')}
             </button>
@@ -195,8 +249,15 @@ export default function Modals({ modal, onClose, reportPostId }) {
           <div className="modal-content">
             <span className="close" onClick={onClose}><Icon name="close" size={20} /></span>
             <h2 style={{ marginBottom: 16 }}>{t('auth.register')}</h2>
+            <form onSubmit={(event) => { event.preventDefault(); handleRegister(); }}>
             <input type="text" placeholder={t('auth.username')} value={regUsername} onChange={(e) => setRegUsername(e.target.value)} />
             <input type="email" placeholder={t('auth.email')} value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
+            {emailCodeRequired && (
+              <div className="auth-email-code-row">
+                <input type="text" inputMode="numeric" maxLength={6} placeholder={t('auth.emailCode')} value={regEmailCode} onChange={(e) => setRegEmailCode(e.target.value)} />
+                <button type="button" disabled={regCodeCooldown > 0} onClick={() => sendCode('register')}>{regCodeCooldown || t('auth.sendCode')}</button>
+              </div>
+            )}
             <input type="password" placeholder={t('auth.passwordHint')} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
             <div className="captcha-row" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
               {regCaptcha ? (
@@ -206,7 +267,8 @@ export default function Modals({ modal, onClose, reportPostId }) {
               )}
               <input type="text" placeholder="答案" style={{ width: 80, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 4 }} value={regCaptchaInput} onChange={(e) => setRegCaptchaInput(e.target.value)} />
             </div>
-            <button className="btn-primary" style={{ width: '100%' }} onClick={handleRegister}>{t('auth.register')}</button>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>{t('auth.register')}</button>
+            </form>
           </div>
         </div>
       )}

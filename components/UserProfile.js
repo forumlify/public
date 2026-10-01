@@ -8,6 +8,7 @@ import { Icon } from './Icons';
 import { useOpenPrivateChat } from './chat/ChatManager';
 import { renderMarkdown } from '@/lib/markdown';
 import { useTranslation } from 'react-i18next';
+import { useToast } from './Toast';
 
 function avatar(username, size = 128) {
   return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username || 'U') +
@@ -18,7 +19,9 @@ export default function UserProfile({ username, initialUser = null, initialPosts
   const { currentUser, openPost } = useApp();
   const { t, i18n } = useTranslation();
   const openPrivateChat = useOpenPrivateChat();
+  const { toast, confirmAction } = useToast();
   const [user, setUser] = useState(initialUser);
+  const [blockStatus, setBlockStatus] = useState(null);
   const [posts, setPosts] = useState(initialPosts || []);
   const [error, setError] = useState(null);
   const postsRef = useRef(null);
@@ -44,6 +47,37 @@ export default function UserProfile({ username, initialUser = null, initialPosts
     setPosts(initialPosts || []);
     load();
   }, [initialPosts, initialUser, load]);
+
+  useEffect(() => {
+    if (!currentUser || !user?.id || currentUser.id === user.id) {
+      setBlockStatus(null);
+      return;
+    }
+    let canceled = false;
+    API.getBlockStatus(user.id)
+      .then((status) => { if (!canceled) setBlockStatus(status); })
+      .catch(() => { if (!canceled) setBlockStatus(null); });
+    return () => { canceled = true; };
+  }, [currentUser?.id, user?.id]);
+
+  const toggleBlock = async () => {
+    const blocked = !!blockStatus?.blocked_by_me;
+    const confirmed = await confirmAction(t(blocked ? 'blocking.unblockConfirm' : 'blocking.blockConfirm', { name: user.username }), {
+      title: t(blocked ? 'blocking.unblock' : 'blocking.block'),
+      confirmLabel: t(blocked ? 'blocking.unblock' : 'blocking.block'),
+      danger: !blocked,
+    });
+    if (!confirmed) return;
+    try {
+      if (blocked) await API.unblockUser(user.id);
+      else await API.blockUser(user.id);
+      setBlockStatus((previous) => ({ ...previous, blocked_by_me: !blocked }));
+      setPosts(blocked ? (await API.getPosts('latest', user.id)).data || [] : []);
+      toast(t(blocked ? 'blocking.unblocked' : 'blocking.blocked'), 'success');
+    } catch (error) {
+      toast(t('blocking.failed', { msg: error.message }), 'error');
+    }
+  };
 
   useEffect(() => {
     const contents = postsRef.current?.querySelectorAll('.user-post-preview') || [];
@@ -76,14 +110,21 @@ export default function UserProfile({ username, initialUser = null, initialPosts
           <div className="user-profile-details">
             <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{user.bio || '这个人很懒，什么都没写'}</p>
             {currentUser && currentUser.username !== user.username && (
+              <div className="user-profile-actions">
+              {!blockStatus?.blocked_by_me && (
               <button
                 className="btn-primary"
-                style={{ marginTop: 12, padding: '8px 20px' }}
                 onClick={() => openPrivateChat(user.id, user.username)}
               >
                 <Icon name="message" size={14} /> 发私信
               </button>
+              )}
+              <button type="button" className="btn-secondary" onClick={toggleBlock}>
+                <Icon name="shield" size={14} /> {t(blockStatus?.blocked_by_me ? 'blocking.unblock' : 'blocking.block')}
+              </button>
+              </div>
             )}
+            {blockStatus?.blocked_by_me && <p className="blocked-user-hint">{t('blocking.blockedHint')}</p>}
             <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 16, fontSize: 14, color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
               <span><Icon name="calendar" size={14} /> 加入于 {user.created_at ? new Date(user.created_at).toLocaleDateString('zh-CN') : '未知'}</span>
               <span><Icon name="file" size={14} /> 发了 {posts.length} 个帖子</span>

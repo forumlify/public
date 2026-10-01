@@ -11,6 +11,7 @@ import AdminLinks from './admin/AdminLinks';
 import AdminForumSettings from './admin/AdminForumSettings';
 import AdminCustomPages from './admin/AdminCustomPages';
 import AdminCustomCss from './admin/AdminCustomCss';
+import AdminMailSettings from './admin/AdminMailSettings';
 
 const NAV = [
   { key: 'reports', labelKey: 'admin.reports', icon: 'shieldAlert' },
@@ -18,6 +19,7 @@ const NAV = [
   { key: 'logs', labelKey: 'admin.logs', icon: 'file' },
   { key: 'links', labelKey: 'admin.links', icon: 'link' },
   { key: 'settings', labelKey: 'admin.forumSettings', icon: 'settings' },
+  { key: 'mail', labelKey: 'admin.mail', icon: 'message' },
   { key: 'custom', labelKey: 'admin.customPages', icon: 'file' },
   { key: 'css', labelKey: 'admin.customCss', icon: 'file' },
 ];
@@ -123,6 +125,7 @@ export default function AdminPage() {
     if (tab === 'links') return <AdminLinks />;
     if (tab === 'custom') return <AdminCustomPages />;
     if (tab === 'css') return <AdminCustomCss />;
+    if (tab === 'mail') return <AdminMailSettings />;
     return <AdminForumSettings />;
   };
 

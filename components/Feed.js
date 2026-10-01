@@ -17,7 +17,7 @@ function avatar(username) {
 
 export default function Feed({ onOpenModal, onReport }) {
   const { currentUser, sort, setSort, openPost, openUser, navigate, refreshKey } = useApp();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { toast, confirmAction } = useToast();
   const [posts, setPosts] = useState(null);
   const [error, setError] = useState(null);
@@ -26,24 +26,33 @@ export default function Feed({ onOpenModal, onReport }) {
   const [totalPages, setTotalPages] = useState(1);
   const [viewerSrc, setViewerSrc] = useState(null);
   const [selectedSort, setSelectedSort] = useState(sort);
+  const [searchInput, setSearchInput] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('q') || '');
+  const [searchQuery, setSearchQuery] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('q') || '');
   const [drawerPhase, setDrawerPhase] = useState('closed');
   const postListRef = useRef(null);
   const sortTimerRef = useRef(null);
   const pendingSortRef = useRef(null);
   const initialDrawerOpenedRef = useRef(false);
+  const requestRef = useRef(0);
   const PAGE_SIZE = 20;
 
   const load = useCallback(async (targetPage) => {
+    const requestId = ++requestRef.current;
     setError(null);
     try {
-      const result = await API.getPosts(sort, null, targetPage, PAGE_SIZE);
+      const result = searchQuery
+        ? await API.searchPosts(searchQuery, targetPage, PAGE_SIZE)
+        : await API.getPosts(sort, null, targetPage, PAGE_SIZE);
+      if (requestId !== requestRef.current) return;
       setPosts(result.data || []);
       setTotalPages(result.pagination?.totalPages || 1);
       setPage(result.pagination?.page || 1);
     } catch (err) {
+      if (requestId !== requestRef.current) return;
       setError(err.message);
       setPosts([]);
     } finally {
+      if (requestId !== requestRef.current) return;
       if (pendingSortRef.current === sort) {
         requestAnimationFrame(() => {
           setDrawerPhase('opening');
@@ -62,9 +71,34 @@ export default function Feed({ onOpenModal, onReport }) {
         });
       }
     }
-  }, [sort, refreshKey]);
+  }, [sort, searchQuery, refreshKey]);
 
   useEffect(() => { load(page); }, [load]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const query = new URLSearchParams(window.location.search).get('q') || '';
+      setSearchInput(query);
+      setSearchQuery(query);
+      setPage(1);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = searchInput.trim();
+      if (next === searchQuery) return;
+      const url = new URL(window.location.href);
+      if (next) url.searchParams.set('q', next);
+      else url.searchParams.delete('q');
+      window.history.replaceState(window.history.state, '', url);
+      setPage(1);
+      setSearchQuery(next);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchQuery]);
 
   // 长帖内容：超过 3 行时加 .has-fade（底部渐变遮罩提示还有更多内容）
   useEffect(() => {
@@ -85,6 +119,13 @@ export default function Feed({ onOpenModal, onReport }) {
   useEffect(() => () => clearTimeout(sortTimerRef.current), []);
 
   const handleSortChange = (nextSort) => {
+    if (searchInput) {
+      setSearchInput('');
+      setSearchQuery('');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('q');
+      window.history.replaceState(window.history.state, '', url);
+    }
     if (nextSort === selectedSort) return;
 
     setSelectedSort(nextSort);
@@ -151,6 +192,31 @@ export default function Feed({ onOpenModal, onReport }) {
           <span className="new-post-launch-label">{t('feed.newPost')}</span>
         </button>
       </div>
+      <div className="feed-search">
+        <Icon name="search" size={18} aria-hidden="true" />
+        <input
+          type="search"
+          name="forumlify-post-search"
+          autoComplete="off"
+          aria-label={t('feed.searchPlaceholder')}
+          placeholder={t('feed.searchPlaceholder')}
+          value={searchInput}
+          maxLength={100}
+          onChange={(event) => setSearchInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              const next = event.currentTarget.value.trim();
+              const url = new URL(window.location.href);
+              if (next) url.searchParams.set('q', next);
+              else url.searchParams.delete('q');
+              window.history.replaceState(window.history.state, '', url);
+              setPage(1);
+              setSearchQuery(next);
+            }
+          }}
+        />
+        {searchInput && <button type="button" aria-label={t('feed.clearSearch')} onClick={() => setSearchInput('')}><Icon name="close" size={16} /></button>}
+      </div>
       <div className={'feed-posts-drawer ' + drawerPhase}>
         <div className="feed-posts-drawer-inner">
           <div id="postList" ref={postListRef}>
@@ -159,10 +225,10 @@ export default function Feed({ onOpenModal, onReport }) {
             ) : error ? (
               <div style={{ textAlign: 'center', color: '#ef4444', padding: '40px 0' }}>{t('feed.loadFailed', { msg: error })}</div>
             ) : posts.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', padding: '60px 0' }}>{t('feed.empty')}</div>
+              <div className="search-empty">{searchQuery ? t('feed.searchEmpty', { query: searchQuery }) : t('feed.empty')}</div>
             ) : (
               posts.map((p) => {
-                const time = p.created_at ? new Date(p.created_at).toLocaleString('zh-CN') : '';
+                const time = p.created_at ? new Date(p.created_at).toLocaleString(i18n.language === 'en' ? 'en-US' : 'zh-CN') : '';
                 return (
                   <div key={p.id} className="post-card topic-row" data-post-id={p.id} data-post-ref={p.post_number || p.id} data-username={p.username || ''} style={{ cursor: 'pointer' }}
                     onClick={(e) => openPost(p.post_number || p.id, e.currentTarget, p)}>

@@ -1,6 +1,7 @@
 // GET /api/conversations, POST /api/conversations
 import pool from '@/lib/db';
 import { getUser } from '@/lib/auth';
+import { ensureUserBlocksSchema, hasBlocked, UUID_RE } from '@/lib/user-blocks';
 
 // 避免 GET 被静态优化导致写方法 405（动态接口，不能缓存）
 export const dynamic = 'force-dynamic';
@@ -42,16 +43,20 @@ export async function POST(req) {
     return Response.json({ error: '请先登录' }, { status: 401 });
   }
   const { other_user_id } = await req.json();
-  if (!other_user_id) {
-    return Response.json({ error: '缺少对方用户ID' }, { status: 400 });
+  if (!UUID_RE.test(other_user_id || '')) {
+    return Response.json({ error: '对方用户ID无效' }, { status: 400 });
   }
   if (other_user_id === user.id) {
     return Response.json({ error: '不能与自己私信' }, { status: 400 });
   }
   try {
+    await ensureUserBlocksSchema();
     const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [other_user_id]);
     if (userCheck.rows.length === 0) {
       return Response.json({ error: '用户不存在' }, { status: 404 });
+    }
+    if (await hasBlocked(other_user_id, user.id) || await hasBlocked(user.id, other_user_id)) {
+      return Response.json({ error: '无法向该用户发起私信' }, { status: 403 });
     }
     const existing = await pool.query(`
       SELECT id FROM conversations
@@ -62,7 +67,9 @@ export async function POST(req) {
     }
     const r = await pool.query(`
       INSERT INTO conversations (user1_id, user2_id)
-      VALUES ($1, $2)
+      VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid))
+      ON CONFLICT (user1_id, user2_id)
+      DO UPDATE SET user1_id = EXCLUDED.user1_id
       RETURNING id
     `, [user.id, other_user_id]);
     return Response.json({ id: r.rows[0].id });

@@ -277,3 +277,48 @@ ALTER TABLE posts ALTER COLUMN post_number SET DEFAULT nextval('posts_post_numbe
 ALTER SEQUENCE posts_post_number_seq OWNED BY posts.post_number;
 ALTER TABLE posts ALTER COLUMN post_number SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS posts_post_number_key ON posts(post_number);
+
+-- ============================================================
+--  用户屏蔽（与 Lite 共用结构，既有安装可重复执行）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS user_blocks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (blocker_id, blocked_id),
+  CHECK (blocker_id <> blocked_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocker ON user_blocks(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked ON user_blocks(blocked_id);
+
+-- ============================================================
+--  邮箱验证码：注册与找回密码共用（默认关闭）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL,
+  code_hash VARCHAR(64) NOT NULL,
+  purpose VARCHAR(20) NOT NULL DEFAULT 'register',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  consumed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_email_verifications_active
+  ON email_verifications (LOWER(email), purpose) WHERE consumed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_email_verifications_expires
+  ON email_verifications (expires_at);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true;
+INSERT INTO settings (key, value) VALUES
+  ('smtp_enabled', 'false'),
+  ('smtp_host', ''),
+  ('smtp_port', '587'),
+  ('smtp_secure', 'false'),
+  ('smtp_user', ''),
+  ('smtp_password', ''),
+  ('smtp_from_name', ''),
+  ('smtp_from_email', ''),
+  ('smtp_allow_self_signed', 'false'),
+  ('email_verify_required', 'false')
+ON CONFLICT (key) DO NOTHING;

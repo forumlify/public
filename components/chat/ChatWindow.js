@@ -6,6 +6,7 @@ import { API } from '@/lib/api';
 import { useApp } from '../AppProvider';
 import { Icon } from '../Icons';
 import { useToast } from '../Toast';
+import { useTranslation } from 'react-i18next';
 
 function avatar(username) {
   return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username || 'U') +
@@ -15,9 +16,12 @@ function avatar(username) {
 export default function ChatWindow({ conversationId, otherUserId, otherUsername, onClose, onRefreshList }) {
   const { currentUser } = useApp();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState(null);
   const [content, setContent] = useState('');
   const containerRef = useRef(null);
+  const waitingForReply = messages && !messages.some((message) => message.sender_id === otherUserId)
+    && messages.filter((message) => message.sender_id === currentUser?.id).length >= 3;
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setMessages(null);
@@ -43,14 +47,15 @@ export default function ChatWindow({ conversationId, otherUserId, otherUsername,
   }, [messages]);
 
   const send = async () => {
-    if (!content.trim()) return;
+    if (!content.trim() || waitingForReply) return;
     try {
       await API.sendMessage(conversationId, content.trim());
       setContent('');
       load();
       onRefreshList();
     } catch (err) {
-      toast('发送失败：' + err.message, 'error');
+      toast(err.status === 429 ? t('chat.limitReached') : err.message, 'error');
+      if (err.status === 429) load(true);
     }
   };
 
@@ -69,7 +74,7 @@ export default function ChatWindow({ conversationId, otherUserId, otherUsername,
           ) : (
             messages.map((m) => {
               const isMine = m.sender_id === currentUser?.id;
-              const time = m.created_at ? new Date(m.created_at).toLocaleString('zh-CN') : '';
+              const time = m.created_at ? new Date(m.created_at).toLocaleString(i18n.language === 'en' ? 'en-US' : 'zh-CN') : '';
               return (
                 <div key={m.id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
                   {!isMine && (
@@ -94,6 +99,7 @@ export default function ChatWindow({ conversationId, otherUserId, otherUsername,
             })
           )}
         </div>
+        {waitingForReply && <div className="chat-limit-hint">{t('chat.limitReached')}</div>}
         <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <input
             type="text"
@@ -101,10 +107,11 @@ export default function ChatWindow({ conversationId, otherUserId, otherUsername,
             placeholder="输入消息..."
             style={{ flex: 1, padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 14, background: 'var(--bg)', color: 'var(--text)', outline: 'none' }}
             value={content}
+            disabled={waitingForReply}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
           />
-          <button className="btn-primary" style={{ padding: '8px 16px' }} onClick={send}>发送</button>
+          <button className="btn-primary" style={{ padding: '8px 16px' }} disabled={waitingForReply} onClick={send}>发送</button>
         </div>
       </div>
     </div>
