@@ -94,6 +94,6 @@ test('malformed JSON bodies are rejected without crashing the server', async () 
     .set('X-Forwarded-For', ip)
     .set('Content-Type', 'application/json')
     .send('{not valid json');
-  assert.ok(res.status >= 400);
-  assert.ok(res.body.error);
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error, 'JSON 格式无效');
 });

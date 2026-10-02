@@ -2604,6 +2604,9 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ error: '请求内容过大' });
   }
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'JSON 格式无效' });
+  }
   if (err.message === 'Origin is not allowed by CORS') {
     return res.status(403).json({ error: '不允许的跨域来源' });
   }
