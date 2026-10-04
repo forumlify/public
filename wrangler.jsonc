@@ -1,5 +1,4 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "forumlify",
 	"compatibility_date": "2026-08-08",
@@ -13,32 +12,11 @@
 	},
 	"services": [
 		{
-			// Self-reference service binding, the service name must match the worker name
-			// see https://opennext.js.org/cloudflare/caching
 			"binding": "WORKER_SELF_REFERENCE",
 			"service": "forumlify"
 		}
 	],
-	"r2_buckets": [
-		// Use R2 incremental cache
-		// See https://opennext.js.org/cloudflare/caching
-		{
-			"binding": "NEXT_INC_CACHE_R2_BUCKET",
-			// Create the bucket before deploying
-			// You can change the bucket name if you want
-			// See https://developers.cloudflare.com/workers/wrangler/commands/#r2-bucket-create
-			"bucket_name": "forumlify-opennext-cache"
-		},
-		// 用户上传图片存储桶（R2 binding，无需 S3 密钥）
-		// 部署时如使用 CF R2 则自动走 binding；否则回退 S3 兼容 API（S3_* 环境变量）
-		{
-			"binding": "FORUMLIFY_BUCKET",
-			"bucket_name": "forum"
-		}
-	],
 	"images": {
-		// Enable image optimization
-		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
 	}
 }
